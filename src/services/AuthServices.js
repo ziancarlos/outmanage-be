@@ -3,7 +3,7 @@ import {
   loginValidation,
   refreshValidation,
 } from "../validations/AuthValidations.js";
-import validate from "../validations/validation.js";
+import validate from "../validations/validation";
 import sanitize from "sanitize-html";
 import bcrypt from "bcrypt";
 import prismaClient from "../utils/Database.js";
