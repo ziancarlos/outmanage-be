@@ -1,6 +1,6 @@
 import prismaClient from "../utils/Database.js";
 import ResponseError from "../errors/ResponseError.js";
-import validate from "../validations/validation.js";
+import validate from "../validations/Validation.js";
 import {
   getValidation,
   createValidation,

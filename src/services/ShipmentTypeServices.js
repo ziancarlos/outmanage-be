@@ -7,7 +7,7 @@ import {
   createValidation,
   updateValidation,
 } from "../validations/ShipmentTypeValidations.js";
-import validate from "../validations/validation.js";
+import validate from "../validations/Validation.js";
 
 async function getShipmentTypeByConstraints(
   where,

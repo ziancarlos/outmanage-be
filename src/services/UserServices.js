@@ -2,7 +2,7 @@ import {
   getAllValidation,
   getValidation,
 } from "../validations/UserValidations.js";
-import validate from "../validations/validation.js";
+import validate from "../validations/Validation.js";
 import prismaClient from "../utils/Database.js";
 import ResponseError from "../errors/ResponseError.js";
 import sanitize from "sanitize-html";
