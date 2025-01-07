@@ -33,7 +33,7 @@ app.use(ShipmentRoutes);
 app.use(RoleRoutes);
 
 app.use(errorMiddleware);
-const port = 300;
+const port = 2000;
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
