@@ -1,0 +1,222 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId       Int       @id @default(autoincrement())
+  username     String    @unique @db.VarChar(50)
+  roleId       Int
+  password     String    @db.VarChar(255)
+  accessToken  String?   @db.VarChar(255)
+  refreshToken String?   @db.VarChar(255)
+  deletedAt    DateTime?
+
+  Role            Role              @relation(fields: [roleId], references: [roleId])
+  UserActivityLog UserActivityLog[]
+
+  InitiatedUserLogs UserLog[]         @relation("UserRelation") // Reference to logs the user initiated
+  TargetedUserLogs  UserLog[]         @relation("TargetedUserRelation") // Reference to logs where the user is the target
+  CustomerLog       CustomerLog[]
+  ShipmentTypeLog   ShipmentTypeLog[]
+  ItemLog           ItemLog[]
+  ShipmentLog       ShipmentLog[]
+
+  @@map("users")
+}
+
+model Role {
+  roleId Int    @id @default(autoincrement())
+  name   String @unique @db.VarChar(50)
+
+  RolePermission RolePermission[]
+  User           User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  permissionId Int    @id @default(autoincrement())
+  name         String @unique @db.VarChar(50)
+
+  RolePermission RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleHasPermissionId Int @id @default(autoincrement())
+  roleId              Int
+  permissionId        Int
+
+  Role       Role       @relation(fields: [roleId], references: [roleId])
+  Permission Permission @relation(fields: [permissionId], references: [permissionId])
+
+  @@unique([roleId, permissionId])
+  @@map("roles_has_permissions")
+}
+
+model UserActivityLog {
+  userActivityLogId Int      @id @default(autoincrement())
+  userId            Int?
+  activityType      Int      @db.TinyInt
+  createdAt         DateTime @default(now())
+  ipAddress         String?  @db.VarChar(45)
+
+  User User? @relation(fields: [userId], references: [userId])
+
+  @@map("users_activities_logs")
+}
+
+model UserLog {
+  userLogId      Int        @id @default(autoincrement())
+  targetedUserId Int
+  userId         Int
+  changeType     ChangeType
+  oldValue       Json?
+  newValue       Json
+  createdAt      DateTime   @default(now())
+
+  TargetedUser User @relation("TargetedUserRelation", fields: [targetedUserId], references: [userId])
+  User         User @relation("UserRelation", fields: [userId], references: [userId])
+
+  @@map("users_logs")
+}
+
+model Customer {
+  customerId  Int           @id @default(autoincrement())
+  name        String        @db.VarChar(100)
+  initials    String        @unique @db.VarChar(5)
+  CustomerLog CustomerLog[]
+
+  @@map("customers")
+}
+
+model CustomerLog {
+  customerLogId Int        @id @default(autoincrement())
+  customerId    Int
+  userId        Int
+  changeType    ChangeType
+  oldValue      Json?
+  newValue      Json
+  createdAt     DateTime   @default(now())
+
+  User     User     @relation(fields: [userId], references: [userId])
+  Customer Customer @relation(fields: [customerId], references: [customerId])
+
+  @@map("customers_logs")
+}
+
+model ShipmentType {
+  shipmentTypeId Int    @id @default(autoincrement())
+  name           String @unique @db.VarChar(100)
+
+  ShipmentTypeLog ShipmentTypeLog[]
+  // Shipment        Shipment[]
+  Shipment        Shipment[]
+
+  @@map("shipments_types")
+}
+
+model ShipmentTypeLog {
+  shipmentTypeLogId Int        @id @default(autoincrement())
+  userId            Int
+  shipmentTypeId    Int
+  changeType        ChangeType
+  oldValue          Json?
+  newValue          Json
+  createdAt         DateTime   @default(now())
+
+  User         User         @relation(fields: [userId], references: [userId])
+  ShipmentType ShipmentType @relation(fields: [shipmentTypeId], references: [shipmentTypeId])
+
+  @@map("shipments_types_logs")
+}
+
+model Item {
+  itemId           Int    @id @default(autoincrement())
+  name             String @unique @db.VarChar(150)
+  stockKeepingUnit String @unique @db.VarChar(30)
+
+  ItemLog       ItemLog[]
+  ShipmentItems ShipmentItems[]
+
+  @@map("items")
+}
+
+model ItemLog {
+  itemLogId  Int        @id @default(autoincrement())
+  userId     Int
+  itemId     Int
+  changeType ChangeType
+  oldValue   Json?
+  newValue   Json
+  createdAt  DateTime   @default(now())
+
+  User User @relation(fields: [userId], references: [userId])
+  Item Item @relation(fields: [itemId], references: [itemId])
+
+  @@map("items_logs")
+}
+
+model Shipment {
+  shipmentId     Int            @id @default(autoincrement())
+  shipmentTypeId Int
+  status         ShipmentStatus @default(UNPROCESSED)
+  licensePlate   String?
+  address        String?        @db.Text
+  internalNotes  String?        @db.Text
+
+  ShipmentType  ShipmentType    @relation(fields: [shipmentTypeId], references: [shipmentTypeId])
+  ShipmentLog   ShipmentLog[]
+  ShipmentItems ShipmentItems[]
+
+  @@map("shipments")
+}
+
+model ShipmentItems {
+  shipmentHasItemId Int @id @default(autoincrement())
+  shipmentId        Int
+  itemId            Int
+  quantity          Int
+
+  Shipment Shipment @relation(fields: [shipmentId], references: [shipmentId])
+  Item     Item     @relation(fields: [itemId], references: [itemId])
+
+  @@unique([shipmentId, itemId])
+  @@map("shipments_has_items")
+}
+
+model ShipmentLog {
+  shipmentLogId Int        @id @default(autoincrement())
+  shipmentId    Int
+  userId        Int
+  changeType    ChangeType
+  details       String     @db.Text
+  createdAt     DateTime   @default(now())
+
+  User     User     @relation(fields: [userId], references: [userId])
+  Shipment Shipment @relation(fields: [shipmentId], references: [shipmentId])
+}
+
+enum ChangeType {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ShipmentStatus {
+  UNPROCESSED
+  PROCESSED
+  COMPLETED
+}

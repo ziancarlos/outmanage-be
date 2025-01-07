@@ -1,0 +1,13 @@
+Status 
+- Belum proses
+- Proses
+- Selesai
+
+Catatan Internal
+
+Plat Mobil
+
+- Pemilik
+- Admin Sales
+- Kepala Gudang
+- Kordinator Lapanga
