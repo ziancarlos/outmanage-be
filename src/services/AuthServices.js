@@ -2,8 +2,8 @@ import ResponseError from "../errors/ResponseError.js";
 import {
   loginValidation,
   refreshValidation,
-} from "../Validations/AuthValidations.js";
-import validate from "../Validations/validation.js";
+} from "../validations/AuthValidations.js";
+import validate from "../validations/validation.js";
 import sanitize from "sanitize-html";
 import bcrypt from "bcrypt";
 import prismaClient from "../utils/Database.js";
