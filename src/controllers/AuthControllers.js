@@ -2,20 +2,18 @@ import AuthService from "../services/AuthServices.js";
 
 async function login(req, res, next) {
   try {
+    console.log("halo");
     const { body } = req;
-
-    console.log("refreshToken login 1");
 
     const { userId, username, accessToken, refreshToken, roleId } =
       await AuthService.login(body, req.ip);
 
-    console.log(refreshToken);
-    console.log("refreshToken login 1");
-
     res.cookie("refreshToken", refreshToken, {
-      maxAge: 1000 * 60 * 10,
-      httpOnly: false,
-      sameSite: "none",
+      httpOnly: true,
+      secure: false,
+      priority: "High",
+      sameSite: false,
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
@@ -49,8 +47,6 @@ async function logout(req, res, next) {
 async function refresh(req, res, next) {
   try {
     const refreshToken = req.cookies.refreshToken;
-    console.log(refreshToken);
-    console.log("refreshToken 2");
 
     const { userId, username, accessToken, roleId } = await AuthService.refresh(
       refreshToken
