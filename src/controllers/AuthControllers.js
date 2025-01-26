@@ -4,7 +4,6 @@ async function login(req, res, next) {
   try {
     const { body } = req;
 
-    console.log(refreshToken);
     console.log("refreshToken login 1");
 
     const { userId, username, accessToken, refreshToken, roleId } =
@@ -23,6 +22,7 @@ async function login(req, res, next) {
       data: { userId, username, accessToken, roleId },
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
