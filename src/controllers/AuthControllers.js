@@ -9,12 +9,13 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
       secure: false,
       priority: "High",
       sameSite: false,
       maxAge: 24 * 60 * 60 * 1000,
     });
+
+    console.log(refreshToken);
 
     res.status(200).json({
       data: { userId, username, accessToken, roleId },
