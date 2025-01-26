@@ -18,7 +18,6 @@ app.use(
     origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
-    credentials: true, // Allow sending cookies with requests
   })
 );
 
