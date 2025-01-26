@@ -4,11 +4,14 @@ async function login(req, res, next) {
   try {
     const { body } = req;
 
+    console.log(refreshToken);
+    console.log("refreshToken login 1");
+
     const { userId, username, accessToken, refreshToken, roleId } =
       await AuthService.login(body, req.ip);
 
     console.log(refreshToken);
-    console.log("refreshToken 1");
+    console.log("refreshToken login 1");
 
     res.cookie("refreshToken", refreshToken, {
       maxAge: 1000 * 60 * 10,
