@@ -10,10 +10,10 @@ async function login(req, res, next) {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: "false",
       priority: "High",
       maxAge: 24 * 60 * 60 * 1000,
-      domain: "116.193.191.63",
+      domain: "http://116.193.191.63:1500",
     });
 
     res.status(200).json({
