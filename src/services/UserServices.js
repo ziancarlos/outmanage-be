@@ -529,11 +529,9 @@ async function update(request, userId) {
     throw new ResponseError(409, "Tidak ada perubahan yang teridentifikasi");
   }
 
-  cons;
-
   const updatedUser = await prismaClient.user.update({
     where: {
-      targetedUserId,
+      userId: targetedUserId,
     },
     data: changes,
     select: {
