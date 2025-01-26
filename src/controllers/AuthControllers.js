@@ -13,6 +13,7 @@ async function login(req, res, next) {
       secure: false,
       priority: "High",
       maxAge: 24 * 60 * 60 * 1000,
+      domain: "116.193.191.63",
     });
 
     res.status(200).json({
