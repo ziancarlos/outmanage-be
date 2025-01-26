@@ -7,15 +7,7 @@ async function login(req, res, next) {
     const { userId, username, accessToken, refreshToken, roleId } =
       await AuthService.login(body, req.ip);
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // Prevent access via JavaScript
-      secure: true, // Use only over HTTPS in production
-      sameSite: "None", // Required for cross-origin cookies
-      maxAge: 86400 * 1000, // 1 day in milliseconds
-      expires: new Date(Date.now() + 86400 * 1000), // 1 day from now
-      path: "/", // Make the cookie available for all routes
-      priority: "high", // Priority of the cookie
-    });
+    res.cookie("refreshToken", refreshToken);
 
     console.log(refreshToken);
 
