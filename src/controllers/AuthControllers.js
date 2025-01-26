@@ -8,7 +8,7 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     res.cookie("refreshToken", refreshToken, {
-      secure: false,
+      secure: true,
       priority: "High",
       sameSite: "None",
       maxAge: 24 * 60 * 60 * 1000,
