@@ -15,10 +15,10 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "*", // Allow requests from this origin
+    origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
+    credentials: true, // Allow sending cookies with requests
   })
 );
 
