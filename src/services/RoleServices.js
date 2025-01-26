@@ -7,6 +7,7 @@ import {
   updateValidation,
   updatePermissionsValidation,
 } from "../validations/RoleValidations.js";
+import sanitize from "sanitize-html";
 
 async function getRoleByConstraints(
   where,
@@ -27,13 +28,29 @@ async function getRoleByConstraints(
       : {
           roleId: true,
           name: true,
-          description: true,
         },
   });
 
   check(role, status, message);
 
   return role;
+}
+
+async function get(roleIdInput) {
+  const { roleId, name } = await getRoleByConstraints(
+    {
+      roleId: validate(getValidation, roleIdInput),
+    },
+    {
+      roleId: true,
+      name: true,
+    }
+  );
+
+  return {
+    roleId,
+    name,
+  };
 }
 
 async function getAll() {
@@ -141,14 +158,15 @@ async function getPermissionsRelated(roleIdInput) {
              ELSE 0
          END AS related
   FROM permissions p
-  LEFT JOIN roles_has_permissions rp ON p.permissionId = rp.permissionId AND rp.roleId = ?`,
+  LEFT JOIN roles_has_permissions rp ON p.permissionId = rp.permissionId AND rp.roleId = ?
+  ORDER BY p.permissionId DESC`,
     roleId
   );
 
   return permissions.map(({ permissionId, name, related }) => ({
     permissionId,
     name,
-    related,
+    related: parseInt(related),
   }));
 }
 
@@ -160,19 +178,25 @@ async function getPermissions(roleIdInput) {
       roleId,
     },
     {
-      Permission: {
+      RolePermission: {
         select: {
-          permissionId: true,
-          name: true,
+          Permission: {
+            select: {
+              permissionId: true,
+              name: true,
+            },
+          },
         },
       },
     }
   );
 
-  return permissions.Permission.map(({ permissionId, name }) => ({
-    permissionId,
-    name,
-  }));
+  return permissions.RolePermission.map(
+    ({ Permission: { permissionId, name } }) => ({
+      permissionId,
+      name,
+    })
+  );
 }
 
 async function updatePermissions(req) {
@@ -184,7 +208,7 @@ async function updatePermissions(req) {
 
   const permissionIds = permissions.map((p) => p.permissionId);
 
-  const dbPermissions = await prisma.permission.findMany({
+  const dbPermissions = await prismaClient.permission.findMany({
     where: {
       permissionId: { in: permissionIds },
     },
@@ -246,6 +270,7 @@ async function updatePermissions(req) {
 }
 
 export default {
+  get,
   getRoleByConstraints,
   getAll,
   create,

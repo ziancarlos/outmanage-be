@@ -54,7 +54,6 @@ async function getLogs(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -63,6 +62,7 @@ async function create(req, res, next) {
   try {
     const { body } = req;
 
+    console.log(req.user.userId);
     await ShipmentTypeServices.create(body, req.user.userId);
 
     return res.status(201).json({
@@ -79,7 +79,7 @@ async function update(req, res, next) {
       shipmentTypeId: req.params.shipmentTypeId,
       name: req.body.name,
     };
-
+    console.log(req.user.userId);
     const result = await ShipmentTypeServices.update(request, req.user.userId);
 
     res.status(200).json({

@@ -15,6 +15,7 @@ async function get(req, res, next) {
 
 async function getAll(req, res, next) {
   try {
+    console.log(req.query.username);
     const request = {
       username: req.query.username,
       removedStatus: false,
@@ -214,7 +215,7 @@ async function getLogs(req, res, next) {
             size: req.query.size,
           }
         : {
-            userId: req.query.customerId,
+            userId: req.query.userId,
             changeType: req.query.changeType,
             page: req.query.page,
             size: req.query.size,

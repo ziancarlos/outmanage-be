@@ -1,3 +1,4 @@
+import sanitize from "sanitize-html";
 import ResponseError from "../errors/ResponseError.js";
 import prismaClient from "../utils/Database.js";
 import {
@@ -183,9 +184,10 @@ async function getLogs(request) {
 
   const shipmentTypesLogs = await prismaClient.shipmentTypeLog.findMany({
     select: {
-      shipmentTypeId: true,
+      shipmentTypeLogId: true,
       ShipmentType: {
         select: {
+          shipmentTypeId: true,
           name: true,
         },
       },
@@ -218,6 +220,8 @@ async function getLogs(request) {
       AND: whereClause,
     },
   });
+
+  console.log(shipmentTypesLogs);
 
   return {
     data: shipmentTypesLogs.map(
@@ -259,6 +263,7 @@ async function create(req, userId) {
 
   name = sanitize(name);
 
+  console.log(userId);
   await getShipmentTypeByConstraints(
     {
       name,
@@ -338,8 +343,8 @@ async function update(request, userId) {
   });
 
   createShipmentTypeLog(
-    userId,
     shipmentTypeId,
+    userId,
     "UPDATE",
     exisitingShipmentType,
     updatedShipmentType

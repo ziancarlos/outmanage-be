@@ -1,5 +1,19 @@
 import RoleServices from "../services/RoleServices.js";
 
+async function get(req, res, next) {
+  try {
+    const roleId = req.params.roleId;
+
+    const result = await RoleServices.get(roleId);
+
+    res.status(200).json({
+      data: result,
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function getAll(req, res, next) {
   try {
     const result = await RoleServices.getAll();
@@ -22,6 +36,7 @@ async function getPermissionsRelated(req, res, next) {
       data: result,
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -40,6 +55,40 @@ async function getPermissions(req, res, next) {
   }
 }
 
+async function create(req, res, next) {
+  try {
+    const { body } = req;
+
+    await RoleServices.create(body);
+
+    return res.status(201).json({
+      data: "Peran berhasil diregistrasi.",
+    });
+  } catch (e) {
+    console.log(e);
+    next(e);
+  }
+}
+
+async function update(req, res, next) {
+  try {
+    const request = {
+      roleId: req.params.roleId,
+      name: req.body.name,
+    };
+
+    const result = await RoleServices.update(request);
+
+    res.status(200).json({
+      data: result,
+    });
+  } catch (e) {
+    console.log(e);
+    console.log(e);
+    next(e);
+  }
+}
+
 async function getMyPermissions(req, res, next) {
   try {
     const roleId = req.user.roleId;
@@ -50,6 +99,7 @@ async function getMyPermissions(req, res, next) {
       data: result,
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -57,11 +107,10 @@ async function getMyPermissions(req, res, next) {
 async function updatePermissions(req, res, next) {
   try {
     const roleId = req.params.roleId;
-    const body = req.body;
 
     const request = {
       roleId,
-      permissions: body,
+      permissions: req.body.permissions,
     };
 
     await RoleServices.updatePermissions(request);
@@ -70,14 +119,18 @@ async function updatePermissions(req, res, next) {
       data: "Berhasil mengubah relasi izin",
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
 
 export default {
+  get,
   getAll,
   getMyPermissions,
   getPermissions,
   getPermissionsRelated,
   updatePermissions,
+  create,
+  update,
 };

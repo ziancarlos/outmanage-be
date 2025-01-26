@@ -1,3 +1,4 @@
+import sanitize from "sanitize-html";
 import ResponseError from "../errors/ResponseError.js";
 import prismaClient from "../utils/Database.js";
 import {
@@ -96,10 +97,11 @@ async function getAll(request) {
     });
   }
 
+  // If no filters are applied, return all records
+  const whereClause = filters.length > 0 ? { OR: filters } : {};
+
   const items = await prismaClient.item.findMany({
-    where: {
-      AND: [...filters],
-    },
+    where: whereClause,
     select: {
       itemId: true,
       name: true,
@@ -113,9 +115,7 @@ async function getAll(request) {
   });
 
   const totalItems = await prismaClient.item.count({
-    where: {
-      AND: [...filters],
-    },
+    where: whereClause,
   });
 
   return {
@@ -199,6 +199,7 @@ async function getLogs(request) {
 
   const itemsLogs = await prismaClient.itemLog.findMany({
     select: {
+      itemLogId: true,
       itemId: true,
       Item: {
         select: {
@@ -372,7 +373,7 @@ async function update(request, userId) {
       }
     );
 
-    changes.name = sanitizedName;
+    changes.stockKeepingUnit = stockKeepingUnit;
   }
 
   if (Object.keys(changes).length === 0) {
@@ -391,7 +392,7 @@ async function update(request, userId) {
     },
   });
 
-  createItemLog(userId, itemId, "UPDATE", exisitingItem, updatedItem);
+  createItemLog(itemId, userId, "UPDATE", exisitingItem, updatedItem);
 
   return updatedItem;
 }

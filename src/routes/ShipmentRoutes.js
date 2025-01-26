@@ -11,7 +11,7 @@ ShipmentRoute.use(authenticationMiddleware);
 
 ShipmentRoute.get(
   "/api/shipments/logs",
-  authorizationMiddleware("read-shipment-logs"),
+  authorizationMiddleware("read-shipments-logs"),
   ShipmentControllers.getLogs
 );
 

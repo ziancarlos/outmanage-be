@@ -98,6 +98,7 @@ model Customer {
   name        String        @db.VarChar(100)
   initials    String        @unique @db.VarChar(5)
   CustomerLog CustomerLog[]
+  Shipment    Shipment[]
 
   @@map("customers")
 }
@@ -172,12 +173,14 @@ model ItemLog {
 model Shipment {
   shipmentId     Int            @id @default(autoincrement())
   shipmentTypeId Int
+  customerId     Int
   status         ShipmentStatus @default(UNPROCESSED)
   licensePlate   String?
   address        String?        @db.Text
   internalNotes  String?        @db.Text
 
   ShipmentType  ShipmentType    @relation(fields: [shipmentTypeId], references: [shipmentTypeId])
+  Customer      Customer        @relation(fields: [customerId], references: [customerId])
   ShipmentLog   ShipmentLog[]
   ShipmentItems ShipmentItems[]
 
@@ -185,10 +188,9 @@ model Shipment {
 }
 
 model ShipmentItems {
-  shipmentHasItemId Int @id @default(autoincrement())
-  shipmentId        Int
-  itemId            Int
-  quantity          Int
+  shipmentId Int
+  itemId     Int
+  quantity   Int
 
   Shipment Shipment @relation(fields: [shipmentId], references: [shipmentId])
   Item     Item     @relation(fields: [itemId], references: [itemId])

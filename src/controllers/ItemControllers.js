@@ -55,7 +55,6 @@ async function getLogs(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }

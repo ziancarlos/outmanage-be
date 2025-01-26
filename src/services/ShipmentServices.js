@@ -10,6 +10,8 @@ import {
   updateValidation,
 } from "../validations/ShipmentValidations.js";
 import { updateStatusValidation } from "../validations/ShipmentValidations.js";
+import sanitize from "sanitize-html";
+import CustomerServices from "./CustomerServices.js";
 
 async function getShipmentByConstraints(
   where,
@@ -66,6 +68,7 @@ async function get(shipmentIdInput) {
     shipmentId,
     ShipmentType: shipmentType,
     ShipmentItems: shipmentItems,
+    Customer: customer,
     status,
     licensePlate,
     address,
@@ -82,13 +85,20 @@ async function get(shipmentIdInput) {
           name: true,
         },
       },
+      Customer: {
+        select: {
+          customerId: true,
+          name: true,
+          initials: true,
+        },
+      },
       ShipmentItems: {
         select: {
-          shipmentHasItemId: true,
           Item: {
             select: {
               itemId: true,
               name: true,
+              stockKeepingUnit: true,
             },
           },
           quantity: true,
@@ -103,22 +113,27 @@ async function get(shipmentIdInput) {
 
   return {
     shipmentId,
+    customer: {
+      customerId: customer.customerId,
+      name: customer.name,
+      initials: customer.initials,
+    },
     shipmentType: {
       shipmentTypeId: shipmentType.shipmentTypeId,
       name: shipmentType.name,
     },
-    items: {
-      ...shipmentItems.map(({ shipmentHasItemId, Item: item, quantity }) => {
+    items: [
+      ...shipmentItems.map(({ Item: item, quantity }) => {
         return {
-          shipmentHasItemId,
           item: {
             itemId: item.itemId,
             name: item.name,
+            stockKeepingUnit: item.stockKeepingUnit,
           },
           quantity,
         };
       }),
-    },
+    ],
     status,
     licensePlate,
     address,
@@ -127,10 +142,15 @@ async function get(shipmentIdInput) {
 }
 
 async function getAll(request) {
-  let { shipmentTypeId, status, licensePlate, address, page, size } = validate(
-    getAllValidation,
-    request
-  );
+  let {
+    customerId,
+    shipmentTypeId,
+    status,
+    licensePlate,
+    address,
+    page,
+    size,
+  } = validate(getAllValidation, request);
 
   licensePlate = sanitize(licensePlate);
   address = sanitize(address);
@@ -160,6 +180,14 @@ async function getAll(request) {
     filtersAnd.push({ status }); // Add to `AND` filters
   }
 
+  if (customerId) {
+    await CustomerServices.getCustomerByConstraints({
+      customerId,
+    });
+
+    filtersAnd.push({ customerId }); // Add to `AND` filters
+  }
+
   if (shipmentTypeId) {
     await ShipmentTypeService.getShipmentTypeByConstraints({
       shipmentTypeId,
@@ -177,6 +205,12 @@ async function getAll(request) {
 
     select: {
       shipmentId: true,
+      Customer: {
+        select: {
+          customerId: true,
+          name: true,
+        },
+      },
       ShipmentType: {
         select: {
           shipmentTypeId: true,
@@ -204,12 +238,18 @@ async function getAll(request) {
       ({
         shipmentId,
         ShipmentType: shipmentType,
+        Customer: customer,
         status,
         licensePlate,
         address,
         internalNotes,
       }) => ({
         shipmentId,
+        customer: {
+          customerId: customer.customerId,
+          name: customer.name,
+          initials: customer.initials,
+        },
         shipmentType: {
           shipmentTypeId: shipmentType.shipmentTypeId,
           name: shipmentType.name,
@@ -303,10 +343,11 @@ async function getLogs(request) {
 
   const shipmentsLogs = await prismaClient.shipmentLog.findMany({
     select: {
+      shipmentLogId: true,
       shipmentId: true,
       Shipment: {
         select: {
-          name: true,
+          shipmentId: true,
         },
       },
       User: {
@@ -351,7 +392,6 @@ async function getLogs(request) {
         shipmentLogId,
         shipment: {
           shipmentId: shipment.shipmentId,
-          name: shipment.name,
         },
         user: {
           userId: user.userId,
@@ -372,21 +412,28 @@ async function getLogs(request) {
 }
 
 async function create(request, userId) {
-  let { shipmentTypeId, licensePlate, address, internalNotes, items } =
-    validate(createValidation, request);
+  let {
+    customerId,
+    shipmentTypeId,
+    licensePlate,
+    address,
+    internalNotes,
+    items,
+  } = validate(createValidation, request);
 
   licensePlate = sanitize(licensePlate) || null;
   address = sanitize(address) || null;
   internalNotes = sanitize(internalNotes) || null;
 
   await ShipmentTypeService.getShipmentTypeByConstraints({ shipmentTypeId });
+  await CustomerServices.getCustomerByConstraints({ customerId });
 
   const itemIds = items.map((item) => item.itemId);
   const itemQuantities = new Map(
     items.map((item) => [item.itemId, item.quantity])
   );
 
-  const existingItems = await prisma.item.findMany({
+  const existingItems = await prismaClient.item.findMany({
     where: {
       itemId: { in: itemIds },
     },
@@ -405,27 +452,27 @@ async function create(request, userId) {
 
   return await prismaClient.$transaction(async (prisma) => {
     // Create the shipment record
-    const { shipmentId, shipmentTypeId, licensePlate, address, internalNotes } =
-      await prisma.shipment.create({
-        data: {
-          shipmentTypeId,
-          licensePlate,
-          address,
-          internalNotes,
-        },
-      });
+    const shipmentData = await prisma.shipment.create({
+      data: {
+        customerId,
+        shipmentTypeId,
+        licensePlate,
+        address,
+        internalNotes,
+      },
+    });
 
     const shipmentItemsData = Array.from(itemQuantities.entries()).map(
       ([itemId, quantity]) => {
         createShipmentLog(
-          shipmentId,
+          shipmentData.shipmentId,
           userId,
           "CREATE",
           `Barang I${itemId} dengan kuantitas ${quantity} telah ditambahkan ke pengiriman ini.`,
           prisma
         );
         return {
-          shipmentId: shipmentId,
+          shipmentId: shipmentData.shipmentId,
           itemId,
           quantity,
         };
@@ -437,11 +484,18 @@ async function create(request, userId) {
       skipDuplicates: true,
     });
 
-    createShipmentLog(
-      shipmentId,
+    await createShipmentLog(
+      shipmentData.shipmentId,
       userId,
       "CREATE",
-      `Tipe Pengeluaran dengan ST${shipmentTypeId}. Plat kendaraan yang menjemput: ${licensePlate}. Alamat pengiriman: ${address}. Catatan internal: ${internalNotes}.`,
+      `Kustomer dengan C${shipmentData.customerId}. Tipe Pengeluaran dengan ST${
+        shipmentData.shipmentTypeId
+      }. 
+Plat kendaraan yang menjemput: ${
+        shipmentData.licensePlate || "Tidak tersedia"
+      }. 
+Alamat pengiriman: ${shipmentData.address || "Tidak tersedia"}. 
+Catatan internal: ${shipmentData.internalNotes || "Tidak tersedia"}.`,
       prisma
     );
   });
@@ -451,6 +505,7 @@ async function update(request, userId) {
   let {
     shipmentId,
     shipmentTypeId,
+    customerId,
     licensePlate,
     address,
     internalNotes,
@@ -470,7 +525,6 @@ async function update(request, userId) {
       shipmentTypeId: true,
       ShipmentItems: {
         select: {
-          shipmentHasItemId: true,
           itemId: true,
           quantity: true,
         },
@@ -486,9 +540,10 @@ async function update(request, userId) {
   await checkItemsExistence(items);
 
   // Get the changes
-  const changes = getChanges(
+  const changes = await getChanges(
     initialShipment,
     shipmentTypeId,
+    customerId,
     licensePlate,
     address,
     internalNotes,
@@ -545,9 +600,10 @@ async function updateStatus(req, userId) {
   });
 }
 
-function getChanges(
+async function getChanges(
   initialShipment,
   shipmentTypeId,
+  customerId,
   licensePlate,
   address,
   internalNotes,
@@ -557,7 +613,18 @@ function getChanges(
 
   // Check for changes in shipment details
   if (shipmentTypeId && shipmentTypeId !== initialShipment.shipmentTypeId) {
+    await ShipmentTypeService.getShipmentTypeByConstraints({
+      shipmentTypeId,
+    });
+
     changes.shipmentTypeId = shipmentTypeId;
+  }
+  if (customerId && customerId !== initialShipment.customerId) {
+    await CustomerServices.getCustomerByConstraints({
+      customerId,
+    });
+
+    changes.customerId = customerId;
   }
   if (licensePlate && licensePlate !== initialShipment.licensePlate) {
     changes.licensePlate = licensePlate;
@@ -608,52 +675,46 @@ async function handleItemUpdates(shipmentId, changes, userId, prisma) {
   if (changes.items) {
     const { addedItems, removedItems, quantityChangedItems } = changes.items;
 
-    if (addedItems.length > 0) {
-      const shipmentItemsData = addedItems.map((item) => {
-        createShipmentLog(
-          shipmentId,
-          userId,
-          "UPDATE",
-          `Telah ditambahkan barang pengiriman I${item.itemId} dengan kuantitas ${item.quantity}`,
-          prisma
-        );
+    for (const item of addedItems) {
+      await createShipmentLog(
+        shipmentId,
+        userId,
+        "UPDATE",
+        `Telah ditambahkan barang pengiriman I${item.itemId} dengan kuantitas ${item.quantity}`,
+        prisma
+      );
 
-        return {
+      await prisma.shipmentItems.create({
+        data: {
           shipmentId,
-          itemId: item.itemId,
           quantity: item.quantity,
-        };
-      });
-      await prisma.shipmentItems.createMany({
-        data: shipmentItemsData,
-        skipDuplicates: true,
+          itemId: item.itemId,
+        },
       });
     }
 
-    // Handle removed items
-    if (removedItems.length > 0) {
-      const removedItemIds = removedItems.map((item) => {
-        createShipmentLog(
-          shipmentId,
-          userId,
-          "UPDATE",
-          `Telah dihapus barang pengiriman I${item.itemId} `,
-          prisma
-        );
+    for (const item of removedItems) {
+      await createShipmentLog(
+        shipmentId,
+        userId,
+        "UPDATE",
+        `Telah dihapus barang pengiriman I${item.itemId} `,
+        prisma
+      );
 
-        return item.itemId;
-      });
-      await prisma.shipmentItems.deleteMany({
+      await prisma.shipmentItems.delete({
         where: {
-          shipmentId,
-          itemId: { in: removedItemIds },
+          shipmentId_itemId: {
+            shipmentId,
+            itemId: item.itemId,
+          },
         },
       });
     }
 
     // Handle quantity changes
     for (const item of quantityChangedItems) {
-      createShipmentLog(
+      await createShipmentLog(
         shipmentId,
         userId,
         "UPDATE",
@@ -663,8 +724,10 @@ async function handleItemUpdates(shipmentId, changes, userId, prisma) {
 
       await prisma.shipmentItems.update({
         where: {
-          shipmentId,
-          itemId: item.itemId,
+          shipmentId_itemId: {
+            shipmentId,
+            itemId: item.itemId,
+          },
         },
         data: { quantity: item.quantity },
       });
@@ -681,6 +744,7 @@ async function updateShipmentDetails(
 ) {
   if (
     changes.shipmentTypeId ||
+    changes.customerId ||
     changes.licensePlate ||
     changes.address ||
     changes.internalNotes
@@ -690,25 +754,28 @@ async function updateShipmentDetails(
       data: {
         shipmentTypeId:
           changes.shipmentTypeId || initialShipment.shipmentTypeId,
+        customerId: changes.customerId || initialShipment.customerId,
         licensePlate: changes.licensePlate || initialShipment.licensePlate,
         address: changes.address || initialShipment.address,
         internalNotes: changes.internalNotes || initialShipment.internalNotes,
       },
     });
 
-    createShipmentLog(
+    await createShipmentLog(
       shipmentId,
       userId,
       "UPDATE",
-      `Telah diperbarui ${
+      [
+        changes.customerId && `Kustomer C${changes.customerId}.`,
         changes.shipmentTypeId &&
-        `Tipe pengeluaran menjadi ST${changes.shipmentTypeId}.`
-      } ${
+          `Tipe pengeluaran menjadi ST${changes.shipmentTypeId}.`,
         changes.licensePlate &&
-        `Plat kendaraan yang menjemput menjadi ${changes.licensePlate}.`
-      } ${changes.address && `Alamat pengiriman ${changes.address}.`} ${
-        changes.internalNotes && `Catatan Internal: ${changes.internalNotes}.`
-      }`,
+          `Plat kendaraan yang menjemput menjadi ${changes.licensePlate}.`,
+        changes.address && `Alamat pengiriman ${changes.address}.`,
+        changes.internalNotes && `Catatan Internal: ${changes.internalNotes}.`,
+      ]
+        .filter(Boolean) // Removes any undefined or falsy values
+        .join(" "),
       prisma
     );
   }
@@ -716,7 +783,7 @@ async function updateShipmentDetails(
 
 async function checkItemsExistence(items) {
   const itemIds = items.map((item) => item.itemId);
-  const existingItems = await prisma.item.findMany({
+  const existingItems = await prismaClient.item.findMany({
     where: { itemId: { in: itemIds } },
     select: { itemId: true },
   });

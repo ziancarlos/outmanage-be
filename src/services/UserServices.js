@@ -1,12 +1,17 @@
 import {
+  createValidation,
+  getActivitiesValidation,
   getAllValidation,
+  getLogsValidation,
   getValidation,
+  updateValidation,
 } from "../validations/UserValidations.js";
 import validate from "../validations/Validation.js";
 import prismaClient from "../utils/Database.js";
 import ResponseError from "../errors/ResponseError.js";
 import sanitize from "sanitize-html";
 import RoleServices from "./RoleServices.js";
+import bcrypt from "bcrypt";
 
 async function getUserByConstraints(
   where,
@@ -57,8 +62,6 @@ async function createUserLog(
 }
 
 async function get(userIdInput) {
-  validate(getValidation, userIdInput);
-
   const {
     userId,
     username,
@@ -66,7 +69,7 @@ async function get(userIdInput) {
     deletedAt,
   } = await getUserByConstraints(
     {
-      userId: userIdInput,
+      userId: validate(getValidation, userIdInput),
     },
     {
       userId: true,
@@ -124,7 +127,7 @@ async function getAll(request) {
     select: {
       userId: true,
       username: true,
-      role: {
+      Role: {
         select: {
           roleId: true,
           name: true,
@@ -146,12 +149,12 @@ async function getAll(request) {
   });
 
   return {
-    data: users.map(({ userId, username, role, deletedAt }) => ({
+    data: users.map(({ userId, username, Role, deletedAt }) => ({
       userId,
       username,
       role: {
-        roleId: role.roleId,
-        name: role.name,
+        roleId: Role.roleId,
+        name: Role.name,
       },
       deletedAt,
     })),
@@ -174,7 +177,7 @@ async function getActivities(request) {
   const filters = [];
 
   if (userId) {
-    await getUserByConstraints(where);
+    await getUserByConstraints({ userId });
 
     filters.push({
       User: {
@@ -288,6 +291,143 @@ async function getActivities(request) {
   };
 }
 
+async function getLogs(request) {
+  const { userId, changeType, date, page, size } = validate(
+    getLogsValidation,
+    request
+  );
+
+  const skip = (page - 1) * size;
+
+  const filters = [];
+
+  if (userId) {
+    await getUserByConstraints({
+      userId,
+    });
+
+    filters.push({
+      targetedUserId: userId,
+    });
+  }
+
+  if (changeType) {
+    filters.push({
+      changeType,
+    });
+  }
+
+  if (date) {
+    if (!date.startDate) {
+      throw new ResponseError(
+        400,
+        "Tanggal mulai dan Tanggal selesai diperlukan."
+      );
+    }
+
+    if (!date.endDate) {
+      throw new ResponseError(
+        400,
+        "Tanggal mulai dan Tanggal selesai diperlukan."
+      );
+    }
+
+    if (new Date(date.startDate) > new Date(date.endDate)) {
+      throw new ResponseError(
+        400,
+        "Tanggal Mulai tidak boleh lebih lambat dari Tanggal Selesai."
+      );
+    }
+
+    const startDate = new Date(date.startDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(date.endDate);
+
+    endDate.setHours(23, 59, 59, 999);
+
+    filters.push({
+      createdAt: {
+        gte: startDate.toISOString(),
+        lte: endDate.toISOString(),
+      },
+    });
+  }
+
+  const usersLogs = await prismaClient.userLog.findMany({
+    select: {
+      userLogId: true,
+      TargetedUser: {
+        select: {
+          userId: true,
+          username: true,
+        },
+      },
+      User: {
+        select: {
+          userId: true,
+          username: true,
+        },
+      },
+      changeType: true,
+      oldValue: true,
+      newValue: true,
+      createdAt: true,
+    },
+
+    where: {
+      AND: filters,
+    },
+
+    orderBy: {
+      userLogId: "desc",
+    },
+
+    take: size,
+    skip,
+  });
+
+  const totalUsersLogs = await prismaClient.userLog.count({
+    where: {
+      AND: filters,
+    },
+  });
+
+  return {
+    data: usersLogs.map(
+      ({
+        userLogId,
+        User: user,
+        TargetedUser: targetedUser,
+        changeType,
+        oldValue,
+        newValue,
+        createdAt,
+      }) => ({
+        userLogId,
+        user: {
+          userId: user.userId,
+          username: user.username,
+        },
+        targetedUser: {
+          userId: targetedUser.userId,
+          username: targetedUser.username,
+        },
+        changeType,
+        oldValue,
+        newValue,
+        createdAt,
+      })
+    ),
+
+    paging: {
+      page,
+      totalItem: totalUsersLogs,
+      totalPage: Math.ceil(totalUsersLogs / size),
+    },
+  };
+}
+
 async function create(req, userId) {
   let { username, password, roleId } = validate(createValidation, req);
 
@@ -320,7 +460,7 @@ async function create(req, userId) {
     data: {
       username,
       password: hashedPassword,
-      role_id: roleId,
+      roleId: roleId,
     },
 
     select: {
@@ -346,7 +486,7 @@ async function update(request, userId) {
   const sanitizedUsername = username ? sanitize(username) : undefined;
 
   const existingUser = await getUserByConstraints({
-    targetedUserId,
+    userId: targetedUserId,
   });
 
   const changes = {};
@@ -359,12 +499,13 @@ async function update(request, userId) {
       null,
       "409",
       "Nama pengguna sudah digunakan.",
-      () => (user, status, message) => {
+      (user, status, message) => {
         if (user) {
           throw new ResponseError(status, message);
         }
       }
     );
+
     changes.username = sanitizedUsername;
   }
 
@@ -410,8 +551,8 @@ async function remove(userIdInput, userId) {
   const targetedUserId = validate(getValidation, userIdInput);
 
   const user = await getUserByConstraints({
-    targetedUserId,
-    deletedAt: { not: null },
+    userId: targetedUserId,
+    deletedAt: null,
   });
 
   createUserLog(
@@ -442,8 +583,8 @@ async function restore(userIdInput, userId) {
   const targetedUserId = validate(getValidation, userIdInput);
 
   const user = await getUserByConstraints({
-    targetedUserId,
-    deletedAt: null,
+    userId: targetedUserId,
+    deletedAt: { not: null },
   });
 
   createUserLog(
@@ -453,7 +594,7 @@ async function restore(userIdInput, userId) {
     user,
     await prismaClient.user.update({
       where: {
-        userId: userId,
+        userId: targetedUserId,
       },
       data: {
         deletedAt: null,
@@ -477,4 +618,5 @@ export default {
   update,
   remove,
   restore,
+  getLogs,
 };

@@ -89,15 +89,15 @@ const createValidation = Joi.object({
   }),
   stockKeepingUnit: Joi.string()
     .required()
-    .min(3)
+    .min(2)
     .max(30)
     .empty()
     .trim()
     .messages({
       "string.base": "Sku harus berupa string",
-      "string.min": "Sku tidak boleh lebih kecil dari 1 karakter",
+      "string.min": "Sku tidak boleh lebih kecil dari 2 karakter",
       "string.empty": "Sku tidak boleh kosong",
-      "string.max": "Sku tidak boleh lebih besar dari 5 karakter",
+      "string.max": "Sku tidak boleh lebih besar dari 30 karakter",
       "any.required": "Sku diperlukan",
     }),
 });
@@ -118,15 +118,15 @@ const updateValidation = Joi.object({
   }),
   stockKeepingUnit: Joi.string()
     .optional()
-    .min(3)
+    .min(2)
     .max(30)
     .empty()
     .trim()
     .messages({
       "string.base": "Sku harus berupa string",
-      "string.min": "Sku tidak boleh lebih kecil dari 1 karakter",
+      "string.min": "Sku tidak boleh lebih kecil dari 2 karakter",
       "string.empty": "Sku tidak boleh kosong",
-      "string.max": "Sku tidak boleh lebih besar dari 5 karakter",
+      "string.max": "Sku tidak boleh lebih besar dari 30 karakter",
       "any.required": "Sku diperlukan",
     }),
 });

@@ -8,6 +8,12 @@ const getValidation = Joi.number().min(1).positive().required().messages({
 });
 
 const getAllValidation = Joi.object({
+  customerId: Joi.number().min(1).positive().optional().messages({
+    "number.base": "Id kustomer harus berupa angka",
+    "number.min": "Id kustomer minimal 1",
+    "number.positive": "Id kustomer harus berupa angka positif",
+    "any.required": "Id kustomer diperlukan",
+  }),
   shipmentTypeId: Joi.number().min(1).positive().optional().messages({
     "number.base": "Id tipe pengiriman harus berupa angka",
     "number.min": "Id tipe pengiriman minimal 1",
@@ -101,6 +107,12 @@ const getLogsValidation = Joi.object({
 });
 
 const createValidation = Joi.object({
+  customerId: Joi.number().min(1).positive().required().messages({
+    "number.base": "Id kustomer harus berupa angka",
+    "number.min": "Id kustomer minimal 1",
+    "number.positive": "Id kustomer harus berupa angka positif",
+    "any.required": "Id kustomer diperlukan",
+  }),
   shipmentTypeId: Joi.number().min(1).positive().required().messages({
     "number.base": "Id tipe pengiriman harus berupa angka",
     "number.min": "Id tipe pengiriman minimal 1",
@@ -109,7 +121,7 @@ const createValidation = Joi.object({
   }),
   licensePlate: Joi.string()
     .regex(/^[A-Z]{1,2} \d{1,4} [A-Z]{1,3}$/)
-    .required()
+    .optional()
     .messages({
       "string.base": "Plat nomor harus berupa string",
       "string.pattern.base":
@@ -175,6 +187,12 @@ const updateValidation = Joi.object({
     "number.positive": "Id pengiriman harus berupa angka positif",
     "any.required": "Id pengiriman diperlukan",
   }),
+  customerId: Joi.number().min(1).positive().optional().messages({
+    "number.base": "Id kustomer harus berupa angka",
+    "number.min": "Id kustomer minimal 1",
+    "number.positive": "Id kustomer harus berupa angka positif",
+    "any.required": "Id kustomer diperlukan",
+  }),
   shipmentTypeId: Joi.number().min(1).positive().optional().messages({
     "number.base": "Id tipe pengiriman harus berupa angka",
     "number.min": "Id tipe pengiriman minimal 1",
@@ -235,11 +253,13 @@ const updateValidation = Joi.object({
     )
     .min(1)
     .optional()
+    .unique((a, b) => a.itemId === b.itemId) // Check for unique itemId
     .messages({
       "array.base": "Barang harus berupa array",
       "array.min": "Setidaknya harus satu barang diperlukkan",
       "array.includesRequiredUnknowns":
         "Setiap barang harus menyertakan id barang dan kuantitas",
+      "array.unique": "Id barang tidak boleh duplikat", // Custom message for uniqueness
     }),
 });
 

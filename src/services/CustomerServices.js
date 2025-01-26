@@ -93,10 +93,11 @@ async function getAll(request) {
     });
   }
 
+  // If no filters are applied, return all records
+  const whereClause = filters.length > 0 ? { OR: filters } : {};
+
   const customers = await prismaClient.customer.findMany({
-    where: {
-      AND: [...filters],
-    },
+    where: whereClause,
     select: {
       customerId: true,
       name: true,
@@ -110,9 +111,7 @@ async function getAll(request) {
   });
 
   const totalCustomers = await prismaClient.customer.count({
-    where: {
-      AND: [...filters],
-    },
+    where: whereClause,
   });
 
   return {
@@ -369,8 +368,8 @@ async function update(request, userId) {
   });
 
   createCustomerLog(
-    userId,
     customerId,
+    userId,
     "UPDATE",
     exisitingCustomer,
     updatedCustomer
@@ -380,6 +379,7 @@ async function update(request, userId) {
 }
 
 export default {
+  getCustomerByConstraints,
   get,
   getAll,
   getLogs,

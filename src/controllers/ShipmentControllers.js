@@ -16,6 +16,7 @@ async function get(req, res, next) {
 async function getAll(req, res, next) {
   try {
     const request = {
+      customerId: req.query.customerId,
       shipmentTypeId: req.query.shipmentTypeId,
       status: req.query.status,
       licensePlate: req.query.licensePlate,
@@ -82,6 +83,7 @@ async function update(req, res, next) {
     const request = {
       shipmentId: req.params.shipmentId,
       shipmentTypeId: req.body.shipmentTypeId,
+      customerId: req.body.customerId,
       licensePlate: req.body.licensePlate,
       address: req.body.address,
       internalNotes: req.body.internalNotes,
