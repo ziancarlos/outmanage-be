@@ -11,11 +11,8 @@ async function login(req, res, next) {
     console.log("refreshToken 1");
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: false,
-      priority: "High",
-      sameSite: false,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 1000 * 60 * 10,
+      httpOnly: false,
     });
 
     res.status(200).json({
