@@ -22,6 +22,11 @@ app.use(
   })
 );
 
+app.use((req, res, next) => {
+  console.log("Cookies:", req.cookies); // Log cookies sent from the client
+  next();
+});
+
 app.use(express.json());
 
 app.use(AuthRoutes);
