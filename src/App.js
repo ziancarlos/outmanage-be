@@ -22,14 +22,14 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.use(
-  cors({
-    origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
-    credentials: true, // Allows cookies to be included in cross-origin requests
-  })
-);
+// app.use(
+//   cors({
+//     origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
+//     allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
+//     credentials: true, // Allows cookies to be included in cross-origin requests
+//   })
+// );
 
 app.use(express.json());
 
