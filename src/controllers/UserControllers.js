@@ -15,7 +15,6 @@ async function get(req, res, next) {
 
 async function getAll(req, res, next) {
   try {
-    console.log(req.query.username);
     const request = {
       username: req.query.username,
       removedStatus: false,
