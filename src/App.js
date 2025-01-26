@@ -15,9 +15,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
-
-    credentials: true, // Allows cookies to be included in cross-origin requests
+    origin: "*", // Allow all origins
+    credentials: true, // Allow cookies
   })
 );
 
