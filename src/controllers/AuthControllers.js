@@ -12,6 +12,7 @@ async function login(req, res, next) {
       httpOnly: true,
       secure: false, // For HTTP (set to true for HTTPS)
       sameSite: "None",
+      domain: "116.193.191.63", // Test with an explicit domain, even though it's an IP
     });
 
     res.status(200).json({
