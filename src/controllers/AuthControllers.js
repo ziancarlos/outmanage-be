@@ -8,6 +8,7 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     console.log(refreshToken);
+    console.log("refreshToken 1");
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -48,6 +49,7 @@ async function refresh(req, res, next) {
   try {
     const refreshToken = req.cookies.refreshToken;
     console.log(refreshToken);
+    console.log("refreshToken 2");
 
     const { userId, username, accessToken, roleId } = await AuthService.refresh(
       refreshToken
