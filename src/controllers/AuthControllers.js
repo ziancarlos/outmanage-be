@@ -9,7 +9,6 @@ async function login(req, res, next) {
 
     res.cookie("refreshToken", refreshToken, {
       secure: true,
-      priority: "High",
       sameSite: "None",
       maxAge: 24 * 60 * 60 * 1000,
     });
