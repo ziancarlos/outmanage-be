@@ -12,7 +12,6 @@ async function login(req, res, next) {
       httpOnly: true,
       secure: false,
       priority: "High",
-      sameSite: false,
       maxAge: 24 * 60 * 60 * 1000,
     });
 
