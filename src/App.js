@@ -15,7 +15,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Allow requests from this origin
+    origin: "*", // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -33,7 +33,7 @@ app.use(ShipmentRoutes);
 app.use(RoleRoutes);
 
 app.use(errorMiddleware);
-const port = 2000;
+const port = 1500;
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
