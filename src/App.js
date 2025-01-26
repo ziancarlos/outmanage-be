@@ -13,23 +13,14 @@ import RoleRoutes from "./routes/RoleRoutes.js";
 const app = express();
 app.use(cookieParser());
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", req.headers.origin);
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  next();
-});
-
-// app.use(
-//   cors({
-//     origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
-//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
-//     allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
-//     credentials: true, // Allows cookies to be included in cross-origin requests
-//   })
-// );
+app.use(
+  cors({
+    origin: "http://localhost:3000", // Replace with your frontend's origin (if it's local, use this)
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allow these headers
+    credentials: true, // Allows cookies to be included in cross-origin requests
+  })
+);
 
 app.use(express.json());
 
