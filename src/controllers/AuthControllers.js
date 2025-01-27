@@ -8,7 +8,10 @@ async function login(req, res, next) {
     const { userId, username, accessToken, refreshToken, roleId } =
       await AuthService.login(body, req.ip);
 
-    res.cookie("refreshToken", refreshToken);
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true, // Prevent JavaScript from accessing the cookie
+      secure: false,
+    });
 
     res.status(200).json({
       data: { userId, username, accessToken, roleId },
