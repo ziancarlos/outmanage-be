@@ -15,17 +15,12 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Allow requests from this origin
+    origin: "http://116.193.191.63", // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
-
-app.use((req, res, next) => {
-  console.log("Cookies:", req.cookies); // Log cookies sent from the client
-  next();
-});
 
 app.use(express.json());
 

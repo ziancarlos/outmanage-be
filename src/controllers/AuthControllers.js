@@ -10,11 +10,11 @@ async function login(req, res, next) {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, // For HTTP (set to true for HTTPS)
-      sameSite: "None",
-      domain: "116.193.191.63", // Test with an explicit domain, even though it's an IP
+      secure: false,
+      priority: "High",
+      sameSite: false,
+      maxAge: 24 * 60 * 60 * 1000,
     });
-    console.log("Setting token cookie:", refreshToken); // Log to confirm cookie set
 
     res.status(200).json({
       data: { userId, username, accessToken, roleId },
@@ -61,6 +61,7 @@ async function refresh(req, res, next) {
       },
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
