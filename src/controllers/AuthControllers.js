@@ -9,11 +9,13 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // Ensures the cookie is only accessible by the server
-      secure: true, // Ensures the cookie is only sent over HTTPS
+      httpOnly: true,
+      secure: true,
       priority: "High",
-      sameSite: "Strict", // Set to "Strict" or "Lax" based on your requirements for cross-site requests
-      maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
+      sameSite: "Strict",
+      maxAge: 24 * 60 * 60 * 1000,
+      domain: "test.outmanage.online", // If using subdomains
+      path: "/", // Ensures the cookie is available for the entire domain
     });
 
     res.status(200).json({
