@@ -9,7 +9,7 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: false,
       priority: "High",
       sameSite: false,
