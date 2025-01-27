@@ -15,7 +15,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://116.193.191.63", // Allow requests from this origin
+    origin: "https://outmanage-fe.web.app", // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
