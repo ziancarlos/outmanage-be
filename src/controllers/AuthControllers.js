@@ -9,11 +9,11 @@ async function login(req, res, next) {
       await AuthService.login(body, req.ip);
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: false,
-      secure: false,
+      httpOnly: true, // Ensures the cookie is only accessible by the server
+      secure: true, // Ensures the cookie is only sent over HTTPS
       priority: "High",
-      sameSite: false,
-      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: "Strict", // Set to "Strict" or "Lax" based on your requirements for cross-site requests
+      maxAge: 24 * 60 * 60 * 1000, // 1 day expiration
     });
 
     res.status(200).json({
