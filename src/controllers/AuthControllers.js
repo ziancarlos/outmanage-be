@@ -10,11 +10,6 @@ async function login(req, res, next) {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true, // Prevent JavaScript from accessing the cookie
-      secure: true, // Cookie will only be sent over HTTPS
-      sameSite: "None", // Allow cross-origin requests
-      priority: "High",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-      domain: ".outmanage.online", // For cross-subdomain cookie sharing
     });
 
     res.status(200).json({
