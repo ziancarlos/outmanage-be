@@ -13,6 +13,7 @@ import RoleRoutes from "./routes/RoleRoutes.js";
 const app = express();
 app.use(cookieParser());
 
+console.log("halo");
 app.use(
   cors({
     origin: "https://outmanage.online", // Allow requests from this origin
