@@ -36,7 +36,6 @@ async function getPermissionsRelated(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -65,7 +64,6 @@ async function create(req, res, next) {
       data: "Peran berhasil diregistrasi.",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -83,8 +81,6 @@ async function update(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
-    console.log(e);
     next(e);
   }
 }
@@ -99,7 +95,6 @@ async function getMyPermissions(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -119,7 +114,6 @@ async function updatePermissions(req, res, next) {
       data: "Berhasil mengubah relasi izin",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
