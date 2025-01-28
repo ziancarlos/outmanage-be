@@ -45,6 +45,7 @@ async function refresh(req, res, next) {
   try {
     const refreshToken = req.cookies.refreshToken;
 
+    console.log(refreshToken);
     const { userId, username, accessToken, roleId } = await AuthService.refresh(
       refreshToken
     );
