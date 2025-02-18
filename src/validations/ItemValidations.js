@@ -12,10 +12,6 @@ const getAllValidation = Joi.object({
     "string.base": "Nama harus berupa string",
     "string.empty": "Nama tidak boleh kosong",
   }),
-  stockKeepingUnit: Joi.string().trim().optional().empty().messages({
-    "string.base": "Sku harus berupa string",
-    "string.empty": "Sku tidak boleh kosong",
-  }),
 
   page: Joi.number().min(1).positive().default(1).messages({
     "number.base": "Halaman harus berupa angka",
@@ -87,19 +83,6 @@ const createValidation = Joi.object({
     "string.max": "Nama tidak boleh lebih besar dari 150 karakter",
     "any.required": "Nama diperlukan",
   }),
-  stockKeepingUnit: Joi.string()
-    .required()
-    .min(2)
-    .max(30)
-    .empty()
-    .trim()
-    .messages({
-      "string.base": "Sku harus berupa string",
-      "string.min": "Sku tidak boleh lebih kecil dari 2 karakter",
-      "string.empty": "Sku tidak boleh kosong",
-      "string.max": "Sku tidak boleh lebih besar dari 30 karakter",
-      "any.required": "Sku diperlukan",
-    }),
 });
 
 const updateValidation = Joi.object({
@@ -116,19 +99,6 @@ const updateValidation = Joi.object({
     "string.max": "Nama tidak boleh lebih besar dari 150 karakter",
     "any.required": "Nama diperlukan",
   }),
-  stockKeepingUnit: Joi.string()
-    .optional()
-    .min(2)
-    .max(30)
-    .empty()
-    .trim()
-    .messages({
-      "string.base": "Sku harus berupa string",
-      "string.min": "Sku tidak boleh lebih kecil dari 2 karakter",
-      "string.empty": "Sku tidak boleh kosong",
-      "string.max": "Sku tidak boleh lebih besar dari 30 karakter",
-      "any.required": "Sku diperlukan",
-    }),
 });
 
 export {

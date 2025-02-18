@@ -1,16 +1,18 @@
-import Joi from "joi";
-
 const getValidation = Joi.number().min(1).positive().required().messages({
-  "number.base": "Id tipe pengiriman harus berupa angka",
-  "number.min": "Id tipe pengiriman minimal 1",
-  "number.positive": "Id tipe pengiriman harus berupa angka positif",
-  "any.required": "Id tipe pengiriman diperlukan",
+  "number.base": "Id armada harus berupa angka",
+  "number.min": "Id armada minimal 1",
+  "number.positive": "Id armada harus berupa angka positif",
+  "any.required": "Id armada diperlukan",
 });
 
 const getAllValidation = Joi.object({
-  name: Joi.string().trim().optional().empty().messages({
-    "string.base": "Nama harus berupa string",
-    "string.empty": "Nama tidak boleh kosong",
+  model: Joi.string().trim().optional().empty().messages({
+    "string.base": "Model harus berupa string",
+    "string.empty": "Model tidak boleh kosong",
+  }),
+  licensePlate: Joi.string().trim().optional().empty().messages({
+    "string.base": "Nomor polisi harus berupa string",
+    "string.empty": "Nomor polisi tidak boleh kosong",
   }),
 
   page: Joi.number().min(1).positive().default(1).messages({
@@ -27,11 +29,11 @@ const getAllValidation = Joi.object({
 });
 
 const getLogsValidation = Joi.object({
-  shipmentTypeId: Joi.number().min(1).positive().optional().messages({
-    "number.base": "Id tipe pengiriman harus berupa angka",
-    "number.min": "Id tipe pengiriman minimal 1",
-    "number.positive": "Id tipe pengiriman harus berupa angka positif",
-    "any.required": "Id tipe pengiriman diperlukan",
+  fleetId: Joi.number().min(1).positive().optional().messages({
+    "number.base": "Id armada harus berupa angka",
+    "number.min": "Id armada minimal 1",
+    "number.positive": "Id armada harus berupa angka positif",
+    "any.required": "Id armada diperlukan",
   }),
   changeType: Joi.string()
     .optional()
@@ -76,29 +78,50 @@ const getLogsValidation = Joi.object({
 });
 
 const createValidation = Joi.object({
-  name: Joi.string().required().min(3).max(100).empty().trim().messages({
-    "string.base": "Nama harus berupa string",
-    "string.min": "Nama tidak boleh lebih kecil dari 3 karakter",
-    "string.empty": "Nama tidak boleh kosong",
-    "string.max": "Nama tidak boleh lebih besar dari 100 karakter",
-    "any.required": "Nama diperlukan",
+  model: Joi.string().required().min(3).max(100).empty().trim().messages({
+    "string.base": "Model harus berupa string",
+    "string.min": "Model tidak boleh lebih kecil dari 3 karakter",
+    "string.empty": "Model tidak boleh kosong",
+    "string.max": "Model tidak boleh lebih besar dari 100 karakter",
+    "any.required": "Model diperlukan",
   }),
+
+  licensePlate: Joi.string()
+    .regex(/^[A-Z]{1,2} \d{1,4} [A-Z]{1,3}$/)
+    .required()
+    .messages({
+      "string.base": "Nomor polisi harus berupa string",
+      "string.pattern.base":
+        "Nomor polisi harus mengikuti format: AA 1234 BBB (misalnya, AB 1234 CD)",
+      "any.required": "Nomor polisi diperlukan",
+    }),
 });
 
 const updateValidation = Joi.object({
-  shipmentTypeId: Joi.number().min(1).positive().required().messages({
-    "number.base": "Id tipe pengiriman harus berupa angka",
-    "number.min": "Id tipe pengiriman minimal 1",
-    "number.positive": "Id tipe pengiriman harus berupa angka positif",
-    "any.required": "Id tipe pengiriman diperlukan",
+  fleetId: Joi.number().min(1).positive().required().messages({
+    "number.base": "Id armada harus berupa angka",
+    "number.min": "Id armada minimal 1",
+    "number.positive": "Id armada harus berupa angka positif",
+    "any.required": "Id armada diperlukan",
   }),
-  name: Joi.string().optional().min(3).max(100).empty().trim().messages({
-    "string.base": "Nama harus berupa string",
-    "string.min": "Nama tidak boleh lebih kecil dari 3 karakter",
-    "string.empty": "Nama tidak boleh kosong",
-    "string.max": "Nama tidak boleh lebih besar dari 100 karakter",
-    "any.required": "Nama diperlukan",
+
+  model: Joi.string().optional().min(3).max(100).empty().trim().messages({
+    "string.base": "Model harus berupa string",
+    "string.min": "Model tidak boleh lebih kecil dari 3 karakter",
+    "string.empty": "Model tidak boleh kosong",
+    "string.max": "Model tidak boleh lebih besar dari 100 karakter",
+    "any.required": "Model diperlukan",
   }),
+
+  licensePlate: Joi.string()
+    .regex(/^[A-Z]{1,2} \d{1,4} [A-Z]{1,3}$/)
+    .optional()
+    .messages({
+      "string.base": "Nomor polisi harus berupa string",
+      "string.pattern.base":
+        "Nomor polisi harus mengikuti format: AA 1234 BBB (misalnya, AB 1234 CD)",
+      "any.required": "Nomor polisi diperlukan",
+    }),
 });
 
 export {

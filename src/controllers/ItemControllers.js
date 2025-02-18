@@ -17,7 +17,6 @@ async function getAll(req, res, next) {
   try {
     const request = {
       name: req.query.name,
-      stockKeepingUnit: req.query.stockKeepingUnit,
       page: req.query.page,
       size: req.query.size,
     };
@@ -78,7 +77,6 @@ async function update(req, res, next) {
     const request = {
       itemId: req.params.itemId,
       name: req.body.name,
-      stockKeepingUnit: req.body.stockKeepingUnit,
     };
 
     const result = await ItemServices.update(request, req.user.userId);

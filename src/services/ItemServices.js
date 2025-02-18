@@ -29,7 +29,6 @@ async function getItemByConstraints(
       : {
           itemId: true,
           name: true,
-          stockKeepingUnit: true,
         },
   });
 
@@ -57,25 +56,20 @@ async function createItemLog(
 }
 
 async function get(itemIdInput) {
-  let { itemId, name, stockKeepingUnit } = await getItemByConstraints({
+  let { itemId, name } = await getItemByConstraints({
     itemId: validate(getValidation, itemIdInput),
   });
 
   return {
     itemId,
     name,
-    stockKeepingUnit,
   };
 }
 
 async function getAll(request) {
-  let { name, stockKeepingUnit, page, size } = validate(
-    getAllValidation,
-    request
-  );
+  let { name, page, size } = validate(getAllValidation, request);
 
   name = sanitize(name);
-  stockKeepingUnit = sanitize(stockKeepingUnit);
 
   const skip = (page - 1) * size;
 
@@ -89,14 +83,6 @@ async function getAll(request) {
     });
   }
 
-  if (stockKeepingUnit) {
-    filters.push({
-      stockKeepingUnit: {
-        contains: stockKeepingUnit,
-      },
-    });
-  }
-
   // If no filters are applied, return all records
   const whereClause = filters.length > 0 ? { OR: filters } : {};
 
@@ -105,7 +91,6 @@ async function getAll(request) {
     select: {
       itemId: true,
       name: true,
-      stockKeepingUnit: true,
     },
     orderBy: {
       itemId: "desc",
@@ -119,10 +104,9 @@ async function getAll(request) {
   });
 
   return {
-    data: items.map(({ itemId, name, stockKeepingUnit }) => ({
+    data: items.map(({ itemId, name }) => ({
       itemId,
       name,
-      stockKeepingUnit,
     })),
     paging: {
       page,
@@ -204,7 +188,6 @@ async function getLogs(request) {
       Item: {
         select: {
           name: true,
-          stockKeepingUnit: true,
         },
       },
       User: {
@@ -252,7 +235,6 @@ async function getLogs(request) {
         item: {
           itemId: item.itemId,
           name: item.name,
-          stockKeepingUnit: item.stockKeepingUnit,
         },
         user: {
           userId: user.userId,
@@ -274,10 +256,10 @@ async function getLogs(request) {
 }
 
 async function create(req, userId) {
-  let { name, stockKeepingUnit } = validate(createValidation, req);
+  let { name } = validate(createValidation, req);
 
   name = sanitize(name);
-  stockKeepingUnit = sanitize(stockKeepingUnit);
+  name = name.toUpperCase();
 
   await getItemByConstraints(
     {
@@ -292,30 +274,15 @@ async function create(req, userId) {
       }
     }
   );
-  await getItemByConstraints(
-    {
-      stockKeepingUnit,
-    },
-    null,
-    400,
-    "Nama SKU sudah digunakan",
-    (item, status, message) => {
-      if (item) {
-        throw new ResponseError(status, message);
-      }
-    }
-  );
 
   const item = await prismaClient.item.create({
     data: {
       name,
-      stockKeepingUnit,
     },
 
     select: {
       itemId: true,
       name: true,
-      stockKeepingUnit: true,
     },
   });
 
@@ -323,13 +290,10 @@ async function create(req, userId) {
 }
 
 async function update(request, userId) {
-  const { itemId, name, stockKeepingUnit } = validate(
-    updateValidation,
-    request
-  );
+  const { itemId, name } = validate(updateValidation, request);
 
-  const sanitizedName = name ? sanitize(name) : null;
-  const sanitizedStockKeepingUnit = name ? sanitize(stockKeepingUnit) : null;
+  let sanitizedName = name ? sanitize(name) : null;
+  sanitizedName = sanitizedName.toUpperCase();
 
   const exisitingItem = await getItemByConstraints({
     itemId,
@@ -344,7 +308,7 @@ async function update(request, userId) {
       },
       null,
       409,
-      "Nama barang sudah dipakai",
+      "Nama barang sudah digunakan",
       (item, status, message) => {
         if (item) {
           throw new ResponseError(status, message);
@@ -353,27 +317,6 @@ async function update(request, userId) {
     );
 
     changes.name = sanitizedName;
-  }
-
-  if (
-    sanitizedStockKeepingUnit &&
-    sanitizedStockKeepingUnit !== exisitingItem.stockKeepingUnit
-  ) {
-    await getItemByConstraints(
-      {
-        stockKeepingUnit: sanitizedStockKeepingUnit,
-      },
-      null,
-      409,
-      "Nama SKU barang sudah dipakai",
-      (item, status, message) => {
-        if (item) {
-          throw new ResponseError(status, message);
-        }
-      }
-    );
-
-    changes.stockKeepingUnit = stockKeepingUnit;
   }
 
   if (Object.keys(changes).length === 0) {
@@ -388,7 +331,6 @@ async function update(request, userId) {
     select: {
       itemId: true,
       name: true,
-      stockKeepingUnit: true,
     },
   });
 
@@ -398,6 +340,7 @@ async function update(request, userId) {
 }
 
 export default {
+  getItemByConstraints,
   get,
   getAll,
   getLogs,

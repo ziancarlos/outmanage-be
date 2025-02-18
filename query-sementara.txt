@@ -1,0 +1,26 @@
+SELECT
+    doi.deliveryOrderItemId,
+    doi.itemId,
+    doi.quantity AS originalQuantity,
+    (doi.quantity - COALESCE(SUM(sdoi.quantity), 0)) AS pendingQuantity,
+    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NOT NULL THEN sdoi.quantity ELSE 0 END), 0) AS completedQuantity,
+    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity
+FROM
+    delivery_orders_items doi
+LEFT JOIN
+    shipment_deliveries_orders_items sdoi 
+        ON doi.deliveryOrderItemId = sdoi.deliveryOrderItemId 
+        AND sdoi.deletedAt IS NULL
+LEFT JOIN
+    shipment_deliveries_orders sdo 
+        ON sdoi.shipmentDeliveryOrderId = sdo.shipmentDeliveryOrderId 
+        AND sdo.deletedAt IS NULL
+LEFT JOIN
+    shipments s 
+        ON sdo.shipmentId = s.shipmentId 
+        AND s.deletedAt IS NULL
+WHERE
+    doi.deliveryOrderId = 2
+    AND doi.deletedAt IS NULL
+GROUP BY
+    doi.deliveryOrderItemId, doi.itemId, doi.quantity;

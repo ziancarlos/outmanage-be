@@ -12,10 +12,6 @@ const getAllValidation = Joi.object({
     "string.base": "Nama harus berupa string",
     "string.empty": "Nama tidak boleh kosong",
   }),
-  initials: Joi.string().trim().optional().empty().messages({
-    "string.base": "inisial harus berupa string",
-    "string.empty": "inisial tidak boleh kosong",
-  }),
 
   page: Joi.number().min(1).positive().default(1).messages({
     "number.base": "Halaman harus berupa angka",
@@ -87,13 +83,6 @@ const createValidation = Joi.object({
     "string.max": "Nama tidak boleh lebih besar dari 100 karakter",
     "any.required": "Nama diperlukan",
   }),
-  initials: Joi.string().required().min(2).max(50).empty().trim().messages({
-    "string.base": "Inisial harus berupa string",
-    "string.min": "Inisial tidak boleh lebih kecil dari 2 karakter",
-    "string.empty": "Inisial tidak boleh kosong",
-    "string.max": "Inisial tidak boleh lebih besar dari 50 karakter",
-    "any.required": "Inisial diperlukan",
-  }),
 });
 
 const updateValidation = Joi.object({
@@ -109,13 +98,6 @@ const updateValidation = Joi.object({
     "string.empty": "Nama tidak boleh kosong",
     "string.max": "Nama tidak boleh lebih besar dari 100 karakter",
     "any.required": "Nama diperlukan",
-  }),
-  initials: Joi.string().optional().min(2).max(50).empty().trim().messages({
-    "string.base": "Inisial harus berupa string",
-    "string.min": "Inisial tidak boleh lebih kecil dari 2 karakter",
-    "string.empty": "Inisial tidak boleh kosong",
-    "string.max": "Inisial tidak boleh lebih besar dari 50 karakter",
-    "any.required": "Inisial diperlukan",
   }),
 });
 

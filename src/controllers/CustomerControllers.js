@@ -17,7 +17,7 @@ async function getAll(req, res, next) {
   try {
     const request = {
       name: req.query.name,
-      initials: req.query.initials,
+
       page: req.query.page,
       size: req.query.size,
     };
@@ -78,7 +78,6 @@ async function update(req, res, next) {
     const request = {
       customerId: req.params.customerId,
       name: req.body.name,
-      initials: req.body.initials,
     };
 
     const result = await CustomerServices.update(request, req.user.userId);

@@ -9,11 +9,12 @@ import {
   updateValidation,
 } from "../validations/CustomerValidations.js";
 import sanitize from "sanitize-html";
+
 async function getCustomerByConstraints(
   where,
   select = null,
   status = 404,
-  message = "Customer tidak ditemukan",
+  message = "Kustomer tidak ditemukan",
   check = (customer, status, message) => {
     if (!customer) {
       throw new ResponseError(status, message);
@@ -28,7 +29,6 @@ async function getCustomerByConstraints(
       : {
           customerId: true,
           name: true,
-          initials: true,
         },
   });
 
@@ -56,22 +56,20 @@ async function createCustomerLog(
 }
 
 async function get(customerIdInput) {
-  let { customerId, name, initials } = await getCustomerByConstraints({
+  let { customerId, name } = await getCustomerByConstraints({
     customerId: validate(getValidation, customerIdInput),
   });
 
   return {
     customerId,
     name,
-    initials,
   };
 }
 
 async function getAll(request) {
-  let { name, initials, page, size } = validate(getAllValidation, request);
+  let { name, page, size } = validate(getAllValidation, request);
 
   name = sanitize(name);
-  initials = sanitize(initials);
 
   const skip = (page - 1) * size;
 
@@ -85,14 +83,6 @@ async function getAll(request) {
     });
   }
 
-  if (initials) {
-    filters.push({
-      initials: {
-        contains: initials,
-      },
-    });
-  }
-
   // If no filters are applied, return all records
   const whereClause = filters.length > 0 ? { OR: filters } : {};
 
@@ -101,7 +91,6 @@ async function getAll(request) {
     select: {
       customerId: true,
       name: true,
-      initials: true,
     },
     orderBy: {
       customerId: "desc",
@@ -115,10 +104,9 @@ async function getAll(request) {
   });
 
   return {
-    data: customers.map(({ customerId, name, initials }) => ({
+    data: customers.map(({ customerId, name }) => ({
       customerId,
       name,
-      initials,
     })),
     paging: {
       page,
@@ -268,18 +256,18 @@ async function getLogs(request) {
 }
 
 async function create(req, userId) {
-  let { name, initials } = validate(createValidation, req);
+  let { name } = validate(createValidation, req);
 
   name = sanitize(name);
-  initials = sanitize(initials);
+  name = name.toUpperCase();
 
   await getCustomerByConstraints(
     {
-      initials,
+      name,
     },
     null,
     400,
-    "Inisial customer sudah digunakan",
+    "Nama customer sudah digunakan",
     (customer, status, message) => {
       if (customer) {
         throw new ResponseError(status, message);
@@ -290,13 +278,11 @@ async function create(req, userId) {
   const customer = await prismaClient.customer.create({
     data: {
       name,
-      initials,
     },
 
     select: {
       customerId: true,
       name: true,
-      initials: true,
     },
   });
 
@@ -304,10 +290,11 @@ async function create(req, userId) {
 }
 
 async function update(request, userId) {
-  const { customerId, name, initials } = validate(updateValidation, request);
+  const { customerId, name } = validate(updateValidation, request);
 
-  const sanitizedName = name ? sanitize(name) : null;
-  const sanitizedInitials = initials ? sanitize(initials) : null;
+  let sanitizedName = name ? sanitize(name) : null;
+
+  sanitizedName = sanitizedName.toUpperCase();
 
   const exisitingCustomer = await getCustomerByConstraints({
     customerId,
@@ -322,7 +309,7 @@ async function update(request, userId) {
       },
       null,
       409,
-      "Nama customer sudah dipakai",
+      "Nama customer sudah digunakan",
       (customer, status, message) => {
         if (customer) {
           throw new ResponseError(status, message);
@@ -331,24 +318,6 @@ async function update(request, userId) {
     );
 
     changes.name = sanitizedName;
-  }
-
-  if (sanitizedInitials && sanitizedInitials !== exisitingCustomer.initials) {
-    await getCustomerByConstraints(
-      {
-        initials: sanitizedInitials,
-      },
-      null,
-      409,
-      "Inisial customer sudah dipakai",
-      (customer, status, message) => {
-        if (customer) {
-          throw new ResponseError(status, message);
-        }
-      }
-    );
-
-    changes.initials = sanitizedInitials;
   }
 
   if (Object.keys(changes).length === 0) {
@@ -363,7 +332,6 @@ async function update(request, userId) {
     select: {
       customerId: true,
       name: true,
-      initials: true,
     },
   });
 

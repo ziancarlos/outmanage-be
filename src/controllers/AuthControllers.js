@@ -17,7 +17,6 @@ async function login(req, res, next) {
       data: { userId, username, accessToken, roleId },
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -59,7 +58,6 @@ async function refresh(req, res, next) {
       },
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }

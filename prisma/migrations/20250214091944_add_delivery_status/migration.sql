@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `delivery_orders` ADD COLUMN `status` ENUM('SELESAI', 'PROSES', 'PENDING') NOT NULL DEFAULT 'PENDING';

@@ -115,7 +115,7 @@ async function update(request) {
       },
       null,
       409,
-      "Nama peran sudah dipakai",
+      "Nama peran sudah digunakan",
       (role, status, message) => {
         if (role) {
           throw new ResponseError(status, message);

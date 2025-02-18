@@ -25,11 +25,12 @@ model User {
   Role            Role              @relation(fields: [roleId], references: [roleId])
   UserActivityLog UserActivityLog[]
 
-  InitiatedUserLogs UserLog[]         @relation("UserRelation") // Reference to logs the user initiated
-  TargetedUserLogs  UserLog[]         @relation("TargetedUserRelation") // Reference to logs where the user is the target
+  InitiatedUserLogs UserLog[]          @relation("UserRelation") // Reference to logs the user initiated
+  TargetedUserLogs  UserLog[]          @relation("TargetedUserRelation") // Reference to logs where the user is the target
   CustomerLog       CustomerLog[]
-  ShipmentTypeLog   ShipmentTypeLog[]
   ItemLog           ItemLog[]
+  DeliveryOrderLog  DeliveryOrderLog[]
+  FleetLog          FleetLog[]
   ShipmentLog       ShipmentLog[]
 
   @@map("users")
@@ -94,11 +95,10 @@ model UserLog {
 }
 
 model Customer {
-  customerId  Int           @id @default(autoincrement())
-  name        String        @db.VarChar(100)
-  initials    String        @unique @db.VarChar(5)
-  CustomerLog CustomerLog[]
-  Shipment    Shipment[]
+  customerId    Int             @id @default(autoincrement())
+  name          String          @unique @db.VarChar(100)
+  CustomerLog   CustomerLog[]
+  DeliveryOrder DeliveryOrder[]
 
   @@map("customers")
 }
@@ -118,39 +118,12 @@ model CustomerLog {
   @@map("customers_logs")
 }
 
-model ShipmentType {
-  shipmentTypeId Int    @id @default(autoincrement())
-  name           String @unique @db.VarChar(100)
-
-  ShipmentTypeLog ShipmentTypeLog[]
-  // Shipment        Shipment[]
-  Shipment        Shipment[]
-
-  @@map("shipments_types")
-}
-
-model ShipmentTypeLog {
-  shipmentTypeLogId Int        @id @default(autoincrement())
-  userId            Int
-  shipmentTypeId    Int
-  changeType        ChangeType
-  oldValue          Json?
-  newValue          Json
-  createdAt         DateTime   @default(now())
-
-  User         User         @relation(fields: [userId], references: [userId])
-  ShipmentType ShipmentType @relation(fields: [shipmentTypeId], references: [shipmentTypeId])
-
-  @@map("shipments_types_logs")
-}
-
 model Item {
-  itemId           Int    @id @default(autoincrement())
-  name             String @unique @db.VarChar(150)
-  stockKeepingUnit String @unique @db.VarChar(30)
+  itemId Int    @id @default(autoincrement())
+  name   String @unique @db.VarChar(150)
 
-  ItemLog       ItemLog[]
-  ShipmentItems ShipmentItems[]
+  ItemLog            ItemLog[]
+  DeliveryOrderItems DeliveryOrderItems[]
 
   @@map("items")
 }
@@ -170,33 +143,141 @@ model ItemLog {
   @@map("items_logs")
 }
 
-model Shipment {
-  shipmentId     Int            @id @default(autoincrement())
-  shipmentTypeId Int
-  customerId     Int
-  status         ShipmentStatus @default(UNPROCESSED)
-  licensePlate   String?
-  address        String?        @db.Text
-  internalNotes  String?        @db.Text
+model DeliveryOrder {
+  deliveryOrderId Int     @id @default(autoincrement())
+  customerId      Int
+  address         String? @db.Text
+  internalNotes   String? @db.Text
 
-  ShipmentType  ShipmentType    @relation(fields: [shipmentTypeId], references: [shipmentTypeId])
-  Customer      Customer        @relation(fields: [customerId], references: [customerId])
-  ShipmentLog   ShipmentLog[]
-  ShipmentItems ShipmentItems[]
+  status DeliveryOrderStatus @default(PENDING)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  Customer              Customer                @relation(fields: [customerId], references: [customerId])
+  DeliveryOrderLog      DeliveryOrderLog[]
+  DeliveryOrderItems    DeliveryOrderItems[]
+  ShipmentDeliveryOrder ShipmentDeliveryOrder[]
+
+  @@map("delivery_orders")
+}
+
+model DeliveryOrderItems {
+  deliveryOrderItemId Int       @id @default(autoincrement())
+  deliveryOrderId     Int
+  itemId              Int
+  quantity            Int
+  deletedAt           DateTime?
+
+  DeliveryOrder             DeliveryOrder               @relation(fields: [deliveryOrderId], references: [deliveryOrderId])
+  Item                      Item                        @relation(fields: [itemId], references: [itemId])
+  ShipmentDeliveryOrderItem ShipmentDeliveryOrderItem[]
+
+  @@unique([deliveryOrderId, itemId])
+  @@map("delivery_orders_items")
+}
+
+model DeliveryOrderLog {
+  deliveryOrderLogId Int        @id @default(autoincrement())
+  deliveryOrderId    Int
+  userId             Int
+  changeType         ChangeType
+  details            String     @db.Text
+  createdAt          DateTime   @default(now())
+
+  User          User          @relation(fields: [userId], references: [userId])
+  DeliveryOrder DeliveryOrder @relation(fields: [deliveryOrderId], references: [deliveryOrderId])
+
+  @@map("delivery_orders_logs")
+}
+
+model Fleet {
+  fleetId          Int                @id @default(autoincrement())
+  model            String             @db.VarChar(100)
+  licensePlate     String             @unique @db.VarChar(20)
+  ShipmentDelivery ShipmentDelivery[]
+
+  @@map("fleets")
+}
+
+model FleetLog {
+  fleetLogId Int        @id @default(autoincrement())
+  userId     Int
+  fleetId    Int
+  changeType ChangeType
+  oldValue   Json?
+  newValue   Json
+  createdAt  DateTime   @default(now())
+
+  User User @relation(fields: [userId], references: [userId])
+
+  @@map("fleets_logs")
+}
+
+model Shipment {
+  shipmentId    Int     @id @default(autoincrement())
+  internalNotes String? @db.Text
+
+  loadGoodsPicture String? @db.VarChar(255)
+
+  shipmentDeliveryId Int?
+  shipmentPickupId   Int?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  ShipmentDelivery      ShipmentDelivery?       @relation(fields: [shipmentDeliveryId], references: [shipmentDeliveryId])
+  ShipmentPickup        ShipmentPickup?         @relation(fields: [shipmentPickupId], references: [shipmentPickupId])
+  ShipmentDeliveryOrder ShipmentDeliveryOrder[]
+  ShipmentLog           ShipmentLog[]
 
   @@map("shipments")
 }
 
-model ShipmentItems {
-  shipmentId Int
-  itemId     Int
-  quantity   Int
+model ShipmentPickup {
+  shipmentPickupId Int        @id @default(autoincrement())
+  licensePlate     String     @unique @db.VarChar(20)
+  Shipment         Shipment[]
 
-  Shipment Shipment @relation(fields: [shipmentId], references: [shipmentId])
-  Item     Item     @relation(fields: [itemId], references: [itemId])
+  @@map("shipment_pickups")
+}
 
-  @@unique([shipmentId, itemId])
-  @@map("shipments_has_items")
+model ShipmentDelivery {
+  shipmentDeliveryId Int @id @default(autoincrement())
+  fleetId            Int
+
+  Fleet    Fleet      @relation(fields: [fleetId], references: [fleetId])
+  Shipment Shipment[]
+
+  @@map("shipment_deliveries")
+}
+
+model ShipmentDeliveryOrder {
+  shipmentDeliveryOrderId   Int                        @id @default(autoincrement())
+  shipmentId                Int
+  deliveryOrderId           Int
+  address                   String?                    @db.Text
+  shipmentDeliveryOrderType ShipmentDeliveryOrderType?
+  deletedAt                 DateTime?
+
+  Shipment                  Shipment                    @relation(fields: [shipmentId], references: [shipmentId])
+  DeliveryOrder             DeliveryOrder               @relation(fields: [deliveryOrderId], references: [deliveryOrderId])
+  ShipmentDeliveryOrderItem ShipmentDeliveryOrderItem[]
+
+  @@map("shipment_deliveries_orders")
+}
+
+model ShipmentDeliveryOrderItem {
+  shipmentDeliveryOrderItemId Int       @id @default(autoincrement())
+  shipmentDeliveryOrderId     Int
+  deliveryOrderItemId         Int
+  quantity                    Int
+  deletedAt                   DateTime?
+
+  DeliveryOrderItems    DeliveryOrderItems    @relation(fields: [deliveryOrderItemId], references: [deliveryOrderItemId])
+  ShipmentDeliveryOrder ShipmentDeliveryOrder @relation(fields: [shipmentDeliveryOrderId], references: [shipmentDeliveryOrderId])
+
+  @@map("shipment_deliveries_orders_items")
 }
 
 model ShipmentLog {
@@ -217,8 +298,15 @@ enum ChangeType {
   DELETE
 }
 
-enum ShipmentStatus {
-  UNPROCESSED
-  PROCESSED
-  COMPLETED
+enum ShipmentDeliveryOrderType {
+  RUMAH
+  KANTOR
+  GUDANG
+  EKSPEDISI
+}
+
+enum DeliveryOrderStatus {
+  SELESAI
+  PROSES
+  PENDING
 }

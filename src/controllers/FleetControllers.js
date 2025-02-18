@@ -1,9 +1,9 @@
-import ShipmentTypeServices from "../services/ShipmentTypeServices.js";
+import FleetServices from "../services/FleetServices.js";
 async function get(req, res, next) {
   try {
-    const shipmentTypeId = req.params.shipmentTypeId;
+    const fleetId = req.params.fleetId;
 
-    const result = await ShipmentTypeServices.get(shipmentTypeId);
+    const result = await FleetServices.get(fleetId);
 
     res.status(200).json({
       data: result,
@@ -16,12 +16,13 @@ async function get(req, res, next) {
 async function getAll(req, res, next) {
   try {
     const request = {
-      name: req.query.name,
+      model: req.query.model,
+      licensePlate: req.query.licensePlate,
       page: req.query.page,
       size: req.query.size,
     };
 
-    const result = await ShipmentTypeServices.getAll(request);
+    const result = await FleetServices.getAll(request);
 
     res.status(200).json(result);
   } catch (e) {
@@ -34,7 +35,7 @@ async function getLogs(req, res, next) {
     const request =
       req.query.startDate || req.query.endDate
         ? {
-            shipmentTypeId: req.query.shipmentTypeId,
+            fleetId: req.query.fleetId,
             changeType: req.query.changeType,
             date: {
               startDate: req.query.startDate,
@@ -44,13 +45,13 @@ async function getLogs(req, res, next) {
             size: req.query.size,
           }
         : {
-            shipmentTypeId: req.query.shipmentTypeId,
+            fleetId: req.query.fleetId,
             changeType: req.query.changeType,
             page: req.query.page,
             size: req.query.size,
           };
 
-    const result = await ShipmentTypeServices.getLogs(request);
+    const result = await FleetServices.getLogs(request);
 
     res.status(200).json(result);
   } catch (e) {
@@ -62,11 +63,10 @@ async function create(req, res, next) {
   try {
     const { body } = req;
 
-    console.log(req.user.userId);
-    await ShipmentTypeServices.create(body, req.user.userId);
+    await FleetServices.create(body, req.user.userId);
 
     return res.status(201).json({
-      data: "Berhasil menambahkan tipe pengiriman.",
+      data: "Berhasil menambahkan armada.",
     });
   } catch (e) {
     next(e);
@@ -76,11 +76,12 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     const request = {
-      shipmentTypeId: req.params.shipmentTypeId,
-      name: req.body.name,
+      fleetId: req.params.fleetId,
+      model: req.body.model,
+      licensePlate: req.body.licensePlate,
     };
-    console.log(req.user.userId);
-    const result = await ShipmentTypeServices.update(request, req.user.userId);
+
+    const result = await FleetServices.update(request, req.user.userId);
 
     res.status(200).json({
       data: result,
