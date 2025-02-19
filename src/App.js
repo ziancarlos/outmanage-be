@@ -8,6 +8,8 @@ import cookieParser from "cookie-parser";
 import ItemRoutes from "./routes/ItemRoutes.js";
 import RoleRoutes from "./routes/RoleRoutes.js";
 import DeliveryOrderRoutes from "./routes/DeliveryOrderRoutes.js";
+import FleetServices from "./services/FleetServices.js";
+import FleetRoutes from "./routes/FleetRoutes.js";
 
 const app = express();
 app.use(cookieParser());
@@ -29,6 +31,7 @@ app.use(CustomerRoutes);
 app.use(ItemRoutes);
 app.use(RoleRoutes);
 app.use(DeliveryOrderRoutes);
+app.use(FleetRoutes);
 
 app.use(errorMiddleware);
 const port = process.env.PORT || 3000;

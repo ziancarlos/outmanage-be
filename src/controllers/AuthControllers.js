@@ -2,7 +2,6 @@ import AuthService from "../services/AuthServices.js";
 
 async function login(req, res, next) {
   try {
-    console.log("halo");
     const { body } = req;
 
     const { userId, username, accessToken, refreshToken, roleId } =
@@ -44,7 +43,6 @@ async function refresh(req, res, next) {
   try {
     const refreshToken = req.cookies.refreshToken;
 
-    console.log(refreshToken);
     const { userId, username, accessToken, roleId } = await AuthService.refresh(
       refreshToken
     );

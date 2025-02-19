@@ -1,3 +1,5 @@
+import Joi from "joi";
+
 const getValidation = Joi.number().min(1).positive().required().messages({
   "number.base": "Id armada harus berupa angka",
   "number.min": "Id armada minimal 1",

@@ -1,12 +1,12 @@
 import sanitize from "sanitize-html";
-import prismaClient from "../utils/Database";
+import prismaClient from "../utils/Database.js";
 import {
   getAllValidation,
   getLogsValidation,
   getValidation,
   createValidation,
   updateValidation,
-} from "../validations/FleetValidations";
+} from "../validations/FleetValidations.js";
 import ResponseError from "../errors/ResponseError.js";
 import validate from "../validations/Validation.js";
 

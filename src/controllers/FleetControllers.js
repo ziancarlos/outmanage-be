@@ -55,6 +55,7 @@ async function getLogs(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -69,6 +70,7 @@ async function create(req, res, next) {
       data: "Berhasil menambahkan armada.",
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }

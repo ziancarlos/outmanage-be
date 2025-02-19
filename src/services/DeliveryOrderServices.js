@@ -62,9 +62,11 @@ async function get(deliveryOrderIdInput) {
   let {
     deliveryOrderId,
     Customer: customer,
+    ShipmentDeliveryOrder: shipmentDeliveryOrder,
     address,
     internalNotes,
     deletedAt,
+    status,
   } = await getDeliveryOrderByConstraints(
     {
       deliveryOrderId: validate(getValidation, deliveryOrderIdInput),
@@ -77,6 +79,19 @@ async function get(deliveryOrderIdInput) {
           name: true,
         },
       },
+      ShipmentDeliveryOrder: {
+        select: {
+          shipmentDeliveryOrderId: true,
+          deliveryOrderId: true,
+          Shipment: {
+            select: {
+              shipmentId: true,
+              loadGoodsPicture: true,
+            },
+          },
+        },
+      },
+      status: true,
       address: true,
       internalNotes: true,
       deletedAt: true,
@@ -91,18 +106,15 @@ async function get(deliveryOrderIdInput) {
     doi.quantity AS originalQuantity,
     (doi.quantity - COALESCE(SUM(sdoi.quantity), 0)) AS pendingQuantity,
     COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NOT NULL THEN sdoi.quantity ELSE 0 END), 0) AS completedQuantity,
-    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity,
-    doi.deletedAt
+    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity
   FROM
       delivery_orders_items doi
   LEFT JOIN
       shipment_deliveries_orders_items sdoi 
           ON doi.deliveryOrderItemId = sdoi.deliveryOrderItemId 
-          AND sdoi.deletedAt IS NULL
   LEFT JOIN
       shipment_deliveries_orders sdo 
           ON sdoi.shipmentDeliveryOrderId = sdo.shipmentDeliveryOrderId 
-          AND sdo.deletedAt IS NULL
   LEFT JOIN
       shipments s 
           ON sdo.shipmentId = s.shipmentId 
@@ -112,10 +124,7 @@ async function get(deliveryOrderIdInput) {
           ON doi.itemId = i.itemId
   WHERE
       doi.deliveryOrderId = ?
-      AND doi.deletedAt IS NULL
       AND s.deletedAt IS NULL    
-      AND sdo.deletedAt IS NULL 
-      AND sdoi.deletedAt IS NULL 
   GROUP BY  doi.deliveryOrderItemId, doi.itemId, doi.quantity;`,
     deliveryOrderId
   );
@@ -125,6 +134,7 @@ async function get(deliveryOrderIdInput) {
     customer,
     address,
     internalNotes,
+    status,
     deliveryOrderItems: deliveryOrderItems.map((item) => {
       return {
         deliveryOrderItemId: item.deliveryOrderItemId,
@@ -138,6 +148,7 @@ async function get(deliveryOrderIdInput) {
         processQuantity: item.processQuantity,
       };
     }),
+    shipmentDeliveryOrder,
     deletedAt,
   };
 }
@@ -490,28 +501,22 @@ async function update(req, userId) {
       doi.quantity AS originalQuantity,
       (doi.quantity - COALESCE(SUM(sdoi.quantity), 0)) AS pendingQuantity,
       COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NOT NULL THEN sdoi.quantity ELSE 0 END), 0) AS completedQuantity,
-      COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity,
-      doi.deletedAt
+      COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity      
     FROM
         delivery_orders_items doi
     LEFT JOIN
         shipment_deliveries_orders_items sdoi 
             ON doi.deliveryOrderItemId = sdoi.deliveryOrderItemId 
-            AND sdoi.deletedAt IS NULL
     LEFT JOIN
         shipment_deliveries_orders sdo 
             ON sdoi.shipmentDeliveryOrderId = sdo.shipmentDeliveryOrderId 
-            AND sdo.deletedAt IS NULL
     LEFT JOIN
         shipments s 
             ON sdo.shipmentId = s.shipmentId 
             AND s.deletedAt IS NULL
     WHERE
         doi.deliveryOrderId = ?
-        AND doi.deletedAt IS NULL
         AND s.deletedAt IS NULL    
-        AND sdo.deletedAt IS NULL  
-        AND sdoi.deletedAt IS NULL 
     GROUP BY
         doi.deliveryOrderItemId, doi.itemId, doi.quantity;`,
       deliveryOrderId
@@ -656,7 +661,7 @@ async function update(req, userId) {
       },
     });
 
-    // Prepare log entries
+    // Prepare log entriesq
     const logPromises = [];
 
     if (changes.customerId || changes.address || changes.internalNotes) {

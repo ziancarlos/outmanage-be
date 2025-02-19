@@ -163,11 +163,10 @@ model DeliveryOrder {
 }
 
 model DeliveryOrderItems {
-  deliveryOrderItemId Int       @id @default(autoincrement())
+  deliveryOrderItemId Int @id @default(autoincrement())
   deliveryOrderId     Int
   itemId              Int
   quantity            Int
-  deletedAt           DateTime?
 
   DeliveryOrder             DeliveryOrder               @relation(fields: [deliveryOrderId], references: [deliveryOrderId])
   Item                      Item                        @relation(fields: [itemId], references: [itemId])
@@ -196,6 +195,7 @@ model Fleet {
   model            String             @db.VarChar(100)
   licensePlate     String             @unique @db.VarChar(20)
   ShipmentDelivery ShipmentDelivery[]
+  FleetLog         FleetLog[]
 
   @@map("fleets")
 }
@@ -209,7 +209,8 @@ model FleetLog {
   newValue   Json
   createdAt  DateTime   @default(now())
 
-  User User @relation(fields: [userId], references: [userId])
+  User  User  @relation(fields: [userId], references: [userId])
+  Fleet Fleet @relation(fields: [fleetId], references: [fleetId])
 
   @@map("fleets_logs")
 }
@@ -258,7 +259,6 @@ model ShipmentDeliveryOrder {
   deliveryOrderId           Int
   address                   String?                    @db.Text
   shipmentDeliveryOrderType ShipmentDeliveryOrderType?
-  deletedAt                 DateTime?
 
   Shipment                  Shipment                    @relation(fields: [shipmentId], references: [shipmentId])
   DeliveryOrder             DeliveryOrder               @relation(fields: [deliveryOrderId], references: [deliveryOrderId])
@@ -268,11 +268,10 @@ model ShipmentDeliveryOrder {
 }
 
 model ShipmentDeliveryOrderItem {
-  shipmentDeliveryOrderItemId Int       @id @default(autoincrement())
+  shipmentDeliveryOrderItemId Int @id @default(autoincrement())
   shipmentDeliveryOrderId     Int
   deliveryOrderItemId         Int
   quantity                    Int
-  deletedAt                   DateTime?
 
   DeliveryOrderItems    DeliveryOrderItems    @relation(fields: [deliveryOrderItemId], references: [deliveryOrderItemId])
   ShipmentDeliveryOrder ShipmentDeliveryOrder @relation(fields: [shipmentDeliveryOrderId], references: [shipmentDeliveryOrderId])
