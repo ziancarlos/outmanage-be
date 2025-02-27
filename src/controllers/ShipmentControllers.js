@@ -1,10 +1,11 @@
 import ResponseError from "../errors/ResponseError.js";
-import DeliveryOrderServices from "../services/DeliveryOrderServices.js";
+import ShipmentServices from "../services/ShipmentServices.js";
+
 async function get(req, res, next) {
   try {
-    const deliveryOrderId = req.params.deliveryOrderId;
+    const shipmentId = req.params.shipmentId;
 
-    const result = await DeliveryOrderServices.get(deliveryOrderId);
+    const result = await ShipmentServices.get(shipmentId);
 
     res.status(200).json({
       data: result,
@@ -20,9 +21,8 @@ async function getAll(req, res, next) {
     const request =
       req.query.startDate || req.query.endDate
         ? {
-            customerId: req.query.customerId,
-            name: req.query.name,
-            deliveryOrderId: req.query.deliveryOrderId,
+            licensePlate: req.query.licensePlate,
+            shipmentType: req.query.shipmentType,
             status: req.query.status,
             removedStatus: req.query.removedStatus,
             date: {
@@ -33,17 +33,19 @@ async function getAll(req, res, next) {
             size: req.query.size,
           }
         : {
-            customerId: req.query.customerId,
+            licensePlate: req.query.licensePlate,
+            shipmentType: req.query.shipmentType,
             status: req.query.status,
             removedStatus: req.query.removedStatus,
             page: req.query.page,
             size: req.query.size,
           };
 
-    const result = await DeliveryOrderServices.getAll(request);
+    const result = await ShipmentServices.getAll(request);
 
     res.status(200).json(result);
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -53,7 +55,7 @@ async function getLogs(req, res, next) {
     const request =
       req.query.startDate || req.query.endDate
         ? {
-            deliveryOrderId: req.query.deliveryOrderId,
+            shipmentId: req.query.shipmentId,
             changeType: req.query.changeType,
             date: {
               startDate: req.query.startDate,
@@ -63,13 +65,13 @@ async function getLogs(req, res, next) {
             size: req.query.size,
           }
         : {
-            deliveryOrderId: req.query.deliveryOrderId,
+            shipmentId: req.query.shipmentId,
             changeType: req.query.changeType,
             page: req.query.page,
             size: req.query.size,
           };
 
-    const result = await DeliveryOrderServices.getLogs(request);
+    const result = await ShipmentServices.getLogs(request);
 
     res.status(200).json(result);
   } catch (e) {
@@ -81,10 +83,10 @@ async function create(req, res, next) {
   try {
     const { body } = req;
 
-    await DeliveryOrderServices.create(body, req.user.userId);
+    await ShipmentServices.create(body, req.user.userId);
 
     return res.status(201).json({
-      data: "Berhasil menambahkan DO.",
+      data: "Berhasil menambahkan Pengiriman.",
     });
   } catch (e) {
     console.log(e);
@@ -92,31 +94,44 @@ async function create(req, res, next) {
   }
 }
 
-async function update(req, res, next) {
+async function uploadImage(req, res, next) {
   try {
+    if (!req.file) {
+      throw new ResponseError(400, "Gambar wajib diunggah.");
+    }
+
     const request = {
-      deliveryOrderId: req.params.deliveryOrderId,
-      customerId: req.body.customerId,
-      address: req.body.address,
-      internalNotes: req.body.internalNotes,
-      items: req.body.items,
+      shipmentId: req.params.shipmentId,
+      imageUrl: req.file.filename,
     };
 
-    const result = await DeliveryOrderServices.update(request, req.user.userId);
+    await ShipmentServices.saveImage(request);
 
-    res.status(200).json({
-      data: result,
+    return res.status(201).json({
+      message: "Bukti muat barang berhasil ditambahkan.",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
 
+async function showImage(req, res, next) {
+  try {
+    const { shipmentId } = req.params;
+
+    const loadGoodsPicture = await ShipmentServices.getImage(shipmentId);
+
+    res.setHeader("Content-Type", "image/jpeg");
+    res.send(loadGoodsPicture);
+  } catch (e) {
+    next(e);
+  }
+}
 export default {
   get,
   getAll,
   getLogs,
-  update,
   create,
+  uploadImage,
+  showImage,
 };

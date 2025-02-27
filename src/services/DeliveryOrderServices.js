@@ -154,10 +154,16 @@ async function get(deliveryOrderIdInput) {
 }
 
 async function getAll(request) {
-  let { customerId, status, removedStatus, date, page, size } = validate(
-    getAllValidation,
-    request
-  );
+  let {
+    customerId,
+    deliveryOrderId,
+    status,
+    removedStatus,
+    name,
+    date,
+    page,
+    size,
+  } = validate(getAllValidation, request);
 
   const skip = (page - 1) * size;
 
@@ -167,6 +173,27 @@ async function getAll(request) {
     await CustomerServices.getCustomerByConstraints({ customerId });
 
     filters.push({ customerId });
+  }
+
+  if (deliveryOrderId) {
+    filters.push({
+      some: {
+        deliveryOrderId: {
+          contains: deliveryOrderId,
+        },
+      },
+    });
+  }
+  if (name) {
+    filters.push({
+      Customer: {
+        some: {
+          name: {
+            contains: name,
+          },
+        },
+      },
+    });
   }
 
   if (removedStatus) {
@@ -737,4 +764,11 @@ async function update(req, userId) {
   });
 }
 
-export default { get, getAll, getLogs, create, update };
+export default {
+  get,
+  getAll,
+  getLogs,
+  create,
+  update,
+  getDeliveryOrderByConstraints,
+};

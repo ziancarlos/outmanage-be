@@ -14,6 +14,18 @@ const getAllValidation = Joi.object({
     "number.positive": "Id Kustomer harus berupa angka positif",
     "any.required": "Id Kustomer diperlukan",
   }),
+  deliveryOrderId: Joi.string().optional().messages({
+    "string.base": "ID DO harus berupa string",
+  }),
+  name: Joi.string().optional().messages({
+    "string.base": "Nama Kustomer harus berupa strings",
+  }),
+  customerId: Joi.number().min(1).positive().optional().messages({
+    "number.base": "Id Kustomer harus berupa angka",
+    "number.min": "Id Kustomer minimal 1",
+    "number.positive": "Id Kustomer harus berupa angka positif",
+    "any.required": "Id Kustomer diperlukan",
+  }),
   status: Joi.string()
     .optional()
     .valid("SELESAI", "PROSES", "PENDING")

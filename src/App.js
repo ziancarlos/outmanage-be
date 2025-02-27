@@ -10,6 +10,7 @@ import RoleRoutes from "./routes/RoleRoutes.js";
 import DeliveryOrderRoutes from "./routes/DeliveryOrderRoutes.js";
 import FleetServices from "./services/FleetServices.js";
 import FleetRoutes from "./routes/FleetRoutes.js";
+import ShipmentRoutes from "./routes/ShipmentRoutes.js";
 
 const app = express();
 app.use(cookieParser());
@@ -32,6 +33,7 @@ app.use(ItemRoutes);
 app.use(RoleRoutes);
 app.use(DeliveryOrderRoutes);
 app.use(FleetRoutes);
+app.use(ShipmentRoutes);
 
 app.use(errorMiddleware);
 const port = process.env.PORT || 3000;

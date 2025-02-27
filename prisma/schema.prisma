@@ -191,11 +191,11 @@ model DeliveryOrderLog {
 }
 
 model Fleet {
-  fleetId          Int                @id @default(autoincrement())
-  model            String             @db.VarChar(100)
-  licensePlate     String             @unique @db.VarChar(20)
-  ShipmentDelivery ShipmentDelivery[]
-  FleetLog         FleetLog[]
+  fleetId      Int        @id @default(autoincrement())
+  model        String     @db.VarChar(100)
+  licensePlate String     @unique @db.VarChar(20)
+  FleetLog     FleetLog[]
+  Shipment     Shipment[]
 
   @@map("fleets")
 }
@@ -221,36 +221,19 @@ model Shipment {
 
   loadGoodsPicture String? @db.VarChar(255)
 
-  shipmentDeliveryId Int?
-  shipmentPickupId   Int?
+  licensePlate String? @db.VarChar(20)
+  fleetId      Int?
 
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  ShipmentDelivery      ShipmentDelivery?       @relation(fields: [shipmentDeliveryId], references: [shipmentDeliveryId])
-  ShipmentPickup        ShipmentPickup?         @relation(fields: [shipmentPickupId], references: [shipmentPickupId])
-  ShipmentDeliveryOrder ShipmentDeliveryOrder[]
-  ShipmentLog           ShipmentLog[]
+  Fleet                              Fleet?                  @relation(fields: [fleetId], references: [fleetId])
+  ShipmentDeliveryOrder              ShipmentDeliveryOrder[]
+  ShipmentLog                        ShipmentLog[]
+  shipmentPickupShipmentPickupId     Int?
+  shipmentDeliveryShipmentDeliveryId Int?
 
   @@map("shipments")
-}
-
-model ShipmentPickup {
-  shipmentPickupId Int        @id @default(autoincrement())
-  licensePlate     String     @unique @db.VarChar(20)
-  Shipment         Shipment[]
-
-  @@map("shipment_pickups")
-}
-
-model ShipmentDelivery {
-  shipmentDeliveryId Int @id @default(autoincrement())
-  fleetId            Int
-
-  Fleet    Fleet      @relation(fields: [fleetId], references: [fleetId])
-  Shipment Shipment[]
-
-  @@map("shipment_deliveries")
 }
 
 model ShipmentDeliveryOrder {
@@ -302,6 +285,7 @@ enum ShipmentDeliveryOrderType {
   KANTOR
   GUDANG
   EKSPEDISI
+  LAINNYA
 }
 
 enum DeliveryOrderStatus {
