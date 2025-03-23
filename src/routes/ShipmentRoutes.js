@@ -29,6 +29,11 @@ ShipmentRoutes.post(
   authorizationMiddleware("create-shipment"),
   ShipmentControllers.create
 );
+ShipmentRoutes.patch(
+  "/api/shipments/:shipmentId",
+  authorizationMiddleware("update-shipment"),
+  ShipmentControllers.update
+);
 
 ShipmentRoutes.put(
   "/api/shipments/:shipmentId",

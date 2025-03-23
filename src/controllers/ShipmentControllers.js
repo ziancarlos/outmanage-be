@@ -127,11 +127,32 @@ async function showImage(req, res, next) {
     next(e);
   }
 }
+
+async function update(req, res, next) {
+  try {
+    const request = {
+      shipmentId: req.params.shipmentId,
+      fleetId: req.body.fleetId,
+      licensePlate: req.body.licensePlate,
+      internalNotes: req.body.internalNotes,
+      deliveryOrders: req.body.deliveryOrders,
+    };
+    await ShipmentServices.update(request, req.user.userId);
+
+    return res.status(201).json({
+      data: "Berhasil mengubah Pengiriman.",
+    });
+  } catch (e) {
+    console.log(e);
+    next(e);
+  }
+}
 export default {
   get,
   getAll,
   getLogs,
   create,
+  update,
   uploadImage,
   showImage,
 };

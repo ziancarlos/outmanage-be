@@ -9,7 +9,9 @@ import {
   getLogsValidation,
   getValidation,
   saveImageValidation,
+  updateValidation,
 } from "../validations/shipmentValidations.js";
+import ResponseError from "../errors/ResponseError.js";
 
 async function getShipmentByConstraints(
   where,
@@ -38,7 +40,7 @@ async function getShipmentByConstraints(
   return shipment;
 }
 
-async function createDeliveryOrderLog(
+async function createShipmentLog(
   shipmentId,
   userId,
   changeType,
@@ -85,15 +87,16 @@ async function getAll(request) {
   }
 
   if (licensePlate) {
-    filtersAnd.push({
+    filtersOr.push({
       licensePlate: {
         contains: licensePlate,
       },
+    });
+
+    filtersOr.push({
       Fleet: {
-        some: {
-          licensePlate: {
-            contains: licensePlate, // Partial match on licensePlate
-          },
+        licensePlate: {
+          contains: licensePlate, // Partial match on licensePlate
         },
       },
     });
@@ -108,12 +111,10 @@ async function getAll(request) {
       filtersAnd.push({
         fleetId: { not: null },
       });
-    } else if (shipmentType === "BELUM DITENTUKAN") {
+    } else if (shipmentType === "BELUM-DITENTUKAN") {
       filtersAnd.push({
         licensePlate: null,
-        Fleet: {
-          fleetId: { not: null },
-        },
+        fleetId: null,
       });
     }
   }
@@ -343,12 +344,10 @@ async function get(shipmentIdInput) {
       }) => {
         return {
           shipmentDeliveryOrderId,
-          deliveryOrder: {
-            deliveryOrderId: deliveryOrder.deliveryOrderId,
-            customer: {
-              customerId: deliveryOrder.Customer.customerId,
-              name: deliveryOrder.Customer.name,
-            },
+          deliveryOrderId: deliveryOrder.deliveryOrderId,
+          customer: {
+            customerId: deliveryOrder.Customer.customerId,
+            name: deliveryOrder.Customer.name,
           },
           address,
           shipmentDeliveryOrderType,
@@ -468,7 +467,7 @@ async function getLogs(request) {
     },
 
     orderBy: {
-      shipmentId: "desc",
+      shipmentLogId: "desc",
     },
 
     take: size,
@@ -525,7 +524,9 @@ async function create(req, userId) {
 
   if (licensePlate) {
     request.licensePlate = sanitize(licensePlate);
-  } else {
+  }
+
+  if (fleetId) {
     await FleetServices.getFleetByConstraints({ fleetId });
     request.fleetId = fleetId;
   }
@@ -583,17 +584,19 @@ async function create(req, userId) {
     });
 
     const promises = [
-      createDeliveryOrderLog(
+      createShipmentLog(
         shipment.shipmentId,
         userId,
         "CREATE",
-        `Menambahkan Pengiriman baru dengan Catatan Internal ${
-          shipment.internalNotes || "Tidak diberikan catatan internal"
-        }; ${
-          request.licensePlate
-            ? `Dijemput dengan nomor polisi ${shipment.licensePlate}`
-            : `Diantar dengan armada ${shipment.fleetId}`
-        };`,
+        `📦 Membuat pengiriman baru\n` +
+          `• Catatan internal: ${
+            shipment.internalNotes || "Tidak ada catatan"
+          }\n` +
+          `${
+            request.licensePlate
+              ? `• Pengambilan dengan kendaraan: ${shipment.licensePlate}`
+              : `• Pengantaran menggunakan armada: #${shipment.fleetId}`
+          }`,
         prisma
       ),
     ];
@@ -607,13 +610,17 @@ async function create(req, userId) {
         ShipmentDeliveryOrderItem,
       }) => {
         promises.push(
-          createDeliveryOrderLog(
+          createShipmentLog(
             shipment.shipmentId,
             userId,
             "CREATE",
-            `Menambahkan SDO${shipmentDeliveryOrderId}; dengan DO${deliveryOrderId}; Alamat: ${
-              address || "Tidak diberikan alamat"
-            }; Tipe Pengiriman ${shipmentDeliveryOrderType};`,
+            `📝 Menambahkan pesanan dari DO-${deliveryOrderId}\n` +
+              `• Alamat pengiriman: ${
+                address || "Alamat tidak dicantumkan"
+              }\n` +
+              `• Jenis pengantaran: ${getDeliveryTypeName(
+                shipmentDeliveryOrderType
+              )}`,
             prisma
           )
         );
@@ -621,11 +628,13 @@ async function create(req, userId) {
         ShipmentDeliveryOrderItem.forEach(
           ({ shipmentDeliveryOrderItemId, deliveryOrderItemId, quantity }) => {
             promises.push(
-              createDeliveryOrderLog(
+              createShipmentLog(
                 shipment.shipmentId,
                 userId,
                 "CREATE",
-                `Menambahkan DOI${deliveryOrderItemId} dan kuantitas ${quantity.toLocaleString()} ke SDOI${shipmentDeliveryOrderItemId};`,
+                `📦 Menambahkan barang ke DO-${deliveryOrderId}\n` +
+                  `• DOI-${deliveryOrderItemId}\n` +
+                  `• Jumlah: ${quantity.toLocaleString()} unit`,
                 prisma
               )
             );
@@ -636,6 +645,17 @@ async function create(req, userId) {
 
     await Promise.all(promises);
   });
+}
+
+function getDeliveryTypeName(type) {
+  const types = {
+    RUMAH: "Ke Rumah",
+    KANTOR: "Ke Kantor",
+    GUDANG: "Ke Gudang",
+    EKSPEDISI: "Via Ekspedisi",
+    LAINNYA: "Lainnya",
+  };
+  return types[type] || "Tidak diketahui";
 }
 
 async function checkDeliveryOrders(deliveryOrders) {
@@ -689,12 +709,381 @@ async function getImage(shipmentId) {
   return shipment.loadGoodsPicture;
 }
 
+function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
+  const createdSDOs = [];
+  const removedSDOs = [];
+  const updatedSDOs = [];
+
+  if (deliveryOrders) {
+    shipment.ShipmentDeliveryOrder.forEach((sdo) => {
+      const sdoExists = deliveryOrders.some(
+        (deliveryOrder) => deliveryOrder.deliveryOrderId === sdo.deliveryOrderId
+      );
+
+      if (!sdoExists) {
+        removedSDOs.push(existingItem);
+      }
+    });
+
+    // Process requested delivery orders
+    for (const deliveryOrder of deliveryOrders) {
+      const existingSDO = shipment.ShipmentDeliveryOrder.find(
+        (sdo) => sdo.deliveryOrderId === deliveryOrder.deliveryOrderId
+      );
+
+      if (!existingSDO) {
+        createdSDOs.push(deliveryOrder);
+      } else {
+        const sdoChanges = {};
+        let hasChanges = false;
+
+        // Check address changes
+
+        if (deliveryOrder.address !== existingSDO.address) {
+          sdoChanges.address = deliveryOrder.address;
+          hasChanges = true;
+        }
+
+        // Check type changes
+        if (
+          deliveryOrder.shipmentDeliveryOrderType !==
+          existingSDO.shipmentDeliveryOrderType
+        ) {
+          sdoChanges.shipmentDeliveryOrderType =
+            deliveryOrder.shipmentDeliveryOrderType;
+          hasChanges = true;
+        }
+
+        // Track item changes
+        const createdItems = [];
+        const removedItems = [];
+        const updatedItems = [];
+
+        // Identify removed items
+        const existingItems = existingSDO.ShipmentDeliveryOrderItem;
+        const requestedItems = deliveryOrder.items || [];
+
+        existingItems.forEach((existingItem) => {
+          const itemExists = requestedItems.some(
+            (item) =>
+              item.deliveryOrderItemId === existingItem.deliveryOrderItemId
+          );
+          if (!itemExists) {
+            removedItems.push(existingItem);
+          }
+        });
+
+        // Process requested items
+        for (const requestedItem of requestedItems) {
+          const existingItem = existingItems.find(
+            (item) =>
+              item.deliveryOrderItemId === requestedItem.deliveryOrderItemId
+          );
+
+          if (!existingItem) {
+            createdItems.push(requestedItem);
+          } else if (existingItem.quantity !== requestedItem.quantity) {
+            updatedItems.push({
+              shipmentDeliveryOrderItemId:
+                existingItem.shipmentDeliveryOrderItemId,
+              quantity: requestedItem.quantity,
+            });
+          }
+        }
+
+        updatedSDOs.push({
+          existingSDO,
+          sdoChanges,
+          createdItems,
+          removedItems,
+          updatedItems,
+          hasChanges:
+            hasChanges ||
+            createdItems.length > 0 ||
+            removedItems.length > 0 ||
+            updatedItems.length > 0,
+        });
+      }
+    }
+  }
+
+  return { createdSDOs, removedSDOs, updatedSDOs };
+}
+
+async function update(req, userId) {
+  let { shipmentId, internalNotes, licensePlate, fleetId, deliveryOrders } =
+    validate(updateValidation, req);
+
+  const changes = {};
+
+  const shipment = await getShipmentByConstraints(
+    { shipmentId },
+    {
+      internalNotes: true,
+      licensePlate: true,
+      fleetId: true,
+      createdAt: true,
+      ShipmentDeliveryOrder: {
+        select: {
+          shipmentDeliveryOrderId: true,
+          deliveryOrderId: true,
+          address: true,
+          shipmentDeliveryOrderType: true,
+          ShipmentDeliveryOrderItem: {
+            select: {
+              shipmentDeliveryOrderItemId: true,
+              deliveryOrderItemId: true,
+              quantity: true,
+            },
+          },
+        },
+      },
+    }
+  );
+
+  if (internalNotes && internalNotes !== shipment.internalNotes) {
+    changes.internalNotes = sanitize(internalNotes);
+  }
+
+  if (licensePlate && licensePlate !== shipment.licensePlate) {
+    changes.licensePlate = sanitize(licensePlate);
+    changes.fleetId = null;
+  }
+
+  if (fleetId && fleetId !== shipment.fleetId) {
+    await FleetServices.getFleetByConstraints({ fleetId });
+    changes.licensePlate = null;
+    changes.fleetId = fleetId;
+  }
+
+  await checkDeliveryOrders(deliveryOrders);
+
+  // Track changes for delivery orders
+  const { createdSDOs, removedSDOs, updatedSDOs } =
+    trackChangesOfDeliveryOrders(deliveryOrders, shipment);
+
+  if (
+    Object.keys(changes).length === 0 &&
+    createdSDOs.length === 0 &&
+    removedSDOs.length === 0 &&
+    !updatedSDOs.some((sdo) => sdo.hasChanges)
+  ) {
+    throw new ResponseError(409, "Tidak ada perubahan yang teridentifikasi");
+  }
+
+  return await prismaClient.$transaction(async (prisma) => {
+    // Update main shipment
+    const updatedShipment = await prisma.shipment.update({
+      where: { shipmentId },
+      data: changes,
+      include: {
+        ShipmentDeliveryOrder: {
+          include: {
+            ShipmentDeliveryOrderItem: true,
+          },
+        },
+      },
+    });
+
+    const logPromises = [];
+
+    // Handle removed SDOs
+    for (const sdo of removedSDOs) {
+      await prisma.shipmentDeliveryOrder.delete({
+        where: { shipmentDeliveryOrderId: sdo.shipmentDeliveryOrderId },
+      });
+
+      await prisma.shipmentDeliveryOrderItem.deleteMany({
+        where: {
+          shipmentDeliveryOrderId: sdo.shipmentDeliveryOrderId,
+        },
+      });
+
+      logPromises.push(
+        createShipmentLog(
+          shipmentId,
+          userId,
+          "DELETE",
+          `Menghapus pesanan dari DO-${sdo.deliveryOrderId}\n` +
+            `• Alamat sebelumnya: ${sdo.address || "Tidak ada alamat"}\n` +
+            `• Jenis sebelumnya: ${getDeliveryTypeName(
+              sdo.shipmentDeliveryOrderType
+            )}`,
+          prisma
+        )
+      );
+    }
+
+    // Handle created SDOs
+    for (const sdoData of createdSDOs) {
+      const newSDO = await prisma.shipmentDeliveryOrder.create({
+        data: {
+          shipmentId,
+          deliveryOrderId: sdoData.deliveryOrderId,
+          address: sdoData.address,
+          shipmentDeliveryOrderType: sdoData.shipmentDeliveryOrderType,
+          ShipmentDeliveryOrderItem: {
+            create: sdoData.items.map((item) => ({
+              deliveryOrderItemId: item.deliveryOrderItemId,
+              quantity: item.quantity,
+            })),
+          },
+        },
+        include: { ShipmentDeliveryOrderItem: true },
+      });
+
+      logPromises.push(
+        createShipmentLog(
+          shipmentId,
+          userId,
+          "CREATE",
+          `📝 Menambahkan pesanan baru dari DO-${sdoData.deliveryOrderId}\n` +
+            `• Alamat: ${sdoData.address || "Tidak dicantumkan"}\n` +
+            `• Jenis pengantaran: ${getDeliveryTypeName(
+              sdoData.shipmentDeliveryOrderType
+            )}`,
+          prisma
+        )
+      );
+
+      for (const item of newSDO.ShipmentDeliveryOrderItem) {
+        logPromises.push(
+          createShipmentLog(
+            shipmentId,
+            userId,
+            `📦 Menambahkan barang ke DO-${sdoData.deliveryOrderId}\n` +
+              `• DOI-${item.deliveryOrderItemId}\n` +
+              `• Jumlah: ${item.quantity.toLocaleString("")} unit`,
+            prisma
+          )
+        );
+      }
+    }
+
+    // Handle updated SDOs
+    for (const updateData of updatedSDOs) {
+      const {
+        existingSDO,
+        sdoChanges,
+        createdItems,
+        removedItems,
+        updatedItems,
+      } = updateData;
+
+      // Update SDO metadata
+      if (Object.keys(sdoChanges).length > 0) {
+        await prisma.shipmentDeliveryOrder.update({
+          where: {
+            shipmentDeliveryOrderId: existingSDO.shipmentDeliveryOrderId,
+          },
+          data: sdoChanges,
+        });
+
+        const changeMessages = [];
+        if (sdoChanges.address) {
+          changeMessages.push(
+            `Alamat: ${existingSDO.address || "Tidak ada"} ➔ ${
+              sdoChanges.address
+            }`
+          );
+        }
+
+        if (sdoChanges.shipmentDeliveryOrderType) {
+          changeMessages.push(
+            `Jenis: ${getDeliveryTypeName(
+              existingSDO.shipmentDeliveryOrderType
+            )} ➔ ${getDeliveryTypeName(sdoChanges.shipmentDeliveryOrderType)}`
+          );
+        }
+
+        logPromises.push(
+          createShipmentLog(
+            shipmentId,
+            userId,
+            "UPDATE",
+            `✏️ Memperbarui pesanan DO-${existingSDO.deliveryOrderId}\n` +
+              changeMessages.map((m) => `• ${m}`).join("\n"),
+            prisma
+          )
+        );
+      }
+
+      // Handle removed items
+      for (const item of removedItems) {
+        await prisma.shipmentDeliveryOrderItem.delete({
+          where: {
+            shipmentDeliveryOrderItemId: item.shipmentDeliveryOrderItemId,
+          },
+        });
+        logPromises.push(
+          createShipmentLog(
+            shipmentId,
+            userId,
+            "DELETE",
+            `🗑️ Menghapus barang dari DO-${existingSDO.deliveryOrderId}\n` +
+              `• DOI-${item.deliveryOrderItemId}\n` +
+              `• Jumlah sebelumnya: ${item.quantity.toLocaleString()} unit`,
+            prisma
+          )
+        );
+      }
+
+      // Handle created items
+      for (const item of createdItems) {
+        const newItem = await prisma.shipmentDeliveryOrderItem.create({
+          data: {
+            shipmentDeliveryOrderId: existingSDO.shipmentDeliveryOrderId,
+            deliveryOrderItemId: item.deliveryOrderItemId,
+            quantity: item.quantity,
+          },
+        });
+        logPromises.push(
+          createShipmentLog(
+            shipmentId,
+            userId,
+            "CREATE",
+            `📦 Menambahkan barang ke DO-${existingSDO.deliveryOrderId}\n` +
+              `• DOI-${newItem.deliveryOrderItemId}\n` +
+              `• Jumlah: ${newItem.quantity.toLocaleString()} unit`,
+            prisma
+          )
+        );
+      }
+
+      // Handle updated items
+      for (const item of updatedItems) {
+        await prisma.shipmentDeliveryOrderItem.update({
+          where: {
+            shipmentDeliveryOrderItemId: item.shipmentDeliveryOrderItemId,
+          },
+          data: { quantity: item.quantity },
+        });
+
+        logPromises.push(
+          createShipmentLog(
+            shipmentId,
+            userId,
+            "UPDATE",
+            `✏️ Memperbarui jumlah barang DO-${existingSDO.deliveryOrderId}\n` +
+              `• DOI-${item.deliveryOrderItemId}\n` +
+              `• Jumlah:  ${item.quantity.toLocaleString()} unit`,
+            prisma
+          )
+        );
+      }
+    }
+
+    await Promise.all(logPromises);
+  });
+}
+
 export default {
   getShipmentByConstraints,
   getAll,
   get,
   getLogs,
-  create,
   saveImage,
   getImage,
+  create,
+  update,
 };

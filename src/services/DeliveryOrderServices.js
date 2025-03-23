@@ -236,6 +236,8 @@ async function getAll(request) {
     });
   }
 
+  const whereClause = filters.length > 0 ? { AND: filters } : {};
+
   const deliveryOrders = await prismaClient.deliveryOrder.findMany({
     select: {
       deliveryOrderId: true,
@@ -249,9 +251,7 @@ async function getAll(request) {
       createdAt: true,
     },
 
-    where: {
-      AND: filters,
-    },
+    where: whereClause,
 
     orderBy: {
       deliveryOrderId: "desc",
@@ -262,9 +262,7 @@ async function getAll(request) {
   });
 
   const totalDeliveryOrders = await prismaClient.deliveryOrder.count({
-    where: {
-      AND: filters,
-    },
+    where: whereClause,
   });
 
   return {
@@ -478,26 +476,236 @@ async function create(req, userId) {
       deliveryOrder.deliveryOrderId,
       userId,
       "CREATE",
-      `Menambahkan DO baru dengan Kustomer C${customerId}; Alamat: ${
-        address || "Tidak diberikan alamat"
-      }; Catatan Internal: ${
-        internalNotes || "Tidak diberikan catatan internal"
-      }.`,
+      `📦 Membuat Pesanan Pengiriman Baru\n` +
+        `• Pelanggan: C-${customerId}\n` +
+        `• Alamat: ${address || "Alamat tidak dicantumkan"}\n` +
+        `• Catatan: ${internalNotes || "Tidak ada catatan tambahan"}`,
       prisma
     );
 
     await Promise.all(
-      deliveryOrder.DeliveryOrderItems.map(({ itemId, quantity }) =>
+      deliveryOrder.DeliveryOrderItems.map(
+        ({ deliveryOrderItemId, itemId, quantity }) =>
+          createDeliveryOrderLog(
+            deliveryOrder.deliveryOrderId,
+            userId,
+            "CREATE",
+            `📋 Menambahkan Barang\n` +
+              `• DOI-${deliveryOrderItemId}\n` +
+              `• Barang I-${itemId}\n` +
+              `• Kuantitas: ${quantity.toLocaleString()} unit`,
+            prisma
+          )
+      )
+    );
+  });
+}
+
+async function getUpdateChanges(
+  items,
+  informations,
+  initialDeliveryOrder,
+  deliveryOrderItems
+) {
+  const changes = await getInformationChanges(
+    informations,
+    initialDeliveryOrder
+  );
+
+  if (items.length > 0) {
+    await checkItemsValid(items, deliveryOrderItems);
+
+    Object.assign(
+      changes,
+      await getUpdateItemsChanges(items, deliveryOrderItems)
+    );
+  }
+
+  if (Object.keys(changes).length === 0) {
+    throw new ResponseError(409, "Tidak ada perubahan yang teridentifikasi");
+  }
+
+  return changes;
+}
+
+async function getUpdateItemsChanges(items, deliveryOrderItems) {
+  const createdItems = [];
+  const removedItems = [];
+  const updatedItems = [];
+
+  // Check for created items (items that are not already in the existing order)
+
+  items.forEach((targetedItem) => {
+    const itemExists = deliveryOrderItems.some(
+      (item) => item.itemId === targetedItem.itemId
+    );
+
+    if (!itemExists) {
+      createdItems.push(targetedItem);
+    }
+  });
+
+  // Check for removed items (items that are in the existing order but not in the new list)
+  deliveryOrderItems.forEach((existingItem) => {
+    const itemExists = items.some(
+      (targetedItem) => targetedItem.itemId === existingItem.itemId
+    );
+
+    if (!itemExists) {
+      if (
+        existingItem.completedQuantity > 0 ||
+        existingItem.processQuantity > 0
+      ) {
+        throw new ResponseError(
+          400,
+          "Barang sudah diproses sebagian atau pengirimannya telah selesai, tidak dapat menghapus barang dari DO"
+        );
+      }
+
+      removedItems.push(existingItem);
+    }
+  });
+
+  // Check for updated items (items that are already in the order but have changed)
+  items.forEach((targetedItem) => {
+    const existingItem = deliveryOrderItems.find(
+      (item) => item.itemId === targetedItem.itemId
+    );
+
+    if (
+      existingItem &&
+      existingItem.originalQuantity !== targetedItem.quantity
+    ) {
+      if (
+        parseInt(existingItem.processQuantity) +
+          parseInt(existingItem.completedQuantity) >
+        targetedItem.quantity
+      ) {
+        throw new ResponseError(
+          400,
+          "Jumlah barang yang sudah diproses atau dikirim kurang dari jumlah yang diubah."
+        );
+      }
+      updatedItems.push(targetedItem);
+    }
+  });
+
+  return {
+    createdItems,
+    removedItems,
+    updatedItems,
+  };
+}
+
+async function getInformationChanges(
+  { customerId, address, internalNotes },
+  initialDeliveryOrder
+) {
+  const changes = {};
+  if (customerId && customerId !== initialDeliveryOrder.customerId) {
+    await CustomerServices.getCustomerByConstraints({
+      customerId,
+    });
+
+    changes.customerId = customerId;
+  }
+
+  if (address && address !== initialDeliveryOrder.address) {
+    changes.address = address;
+  }
+
+  if (internalNotes && internalNotes !== initialDeliveryOrder.internalNotes) {
+    changes.internalNotes = internalNotes;
+  }
+
+  return changes;
+}
+
+async function createUpdateInformationLog(changes, initialDeliveryOrder) {
+  const changesLog = [];
+
+  if (changes.customerId) {
+    changesLog.push(
+      `• Kustomer: [C-${initialDeliveryOrder.customerId}] ➔ [C-${changes.customerId}]`
+    );
+  }
+
+  if (changes.address) {
+    const oldAddress = initialDeliveryOrder.address || "Tidak ada alamat";
+    const newAddress = changes.address || "Tidak ada alamat";
+    changesLog.push(`• Alamat: ${oldAddress} ➔ ${newAddress}`);
+  }
+
+  if (changes.internalNotes) {
+    const oldNotes = initialDeliveryOrder.internalNotes || "Tidak ada catatan";
+    const newNotes = changes.internalNotes || "Tidak ada catatan";
+    changesLog.push(`• Catatan: "${oldNotes}" ➔ "${newNotes}"`);
+  }
+
+  return changesLog;
+}
+
+async function createUpdateItemsLog(
+  changes,
+  deliveryOrder,
+  userId,
+  prisma,
+  deliveryOrderItems
+) {
+  const logPromises = [];
+  if (changes.createdItems && changes.createdItems.length > 0) {
+    logPromises.push(
+      ...changes.createdItems.map(({ itemId, quantity }) =>
         createDeliveryOrderLog(
           deliveryOrder.deliveryOrderId,
           userId,
           "CREATE",
-          `Menambahkan barang pada DO dengan Barang I${itemId}; Kuantitas: ${quantity}`,
+          `📦 Menambahkan Barang Baru\n` +
+            `• Barang: I-${itemId}\n` +
+            `• Jumlah: ${quantity.toLocaleString()} unit`,
           prisma
         )
       )
     );
-  });
+  }
+
+  if (changes.updatedItems && changes.updatedItems.length > 0) {
+    logPromises.push(
+      ...changes.updatedItems.map(({ itemId, quantity }) => {
+        const oldQuantity =
+          deliveryOrderItems.find((i) => i.itemId === itemId)
+            ?.originalQuantity || 0;
+
+        return createDeliveryOrderLog(
+          deliveryOrder.deliveryOrderId,
+          userId,
+          "UPDATE",
+          `🔄 Mengubah Jumlah Barang\n` +
+            `• Barang: I-${itemId}\n` +
+            `• Jumlah: ${oldQuantity.toLocaleString()} ➔ ${quantity.toLocaleString()} unit`,
+          prisma
+        );
+      })
+    );
+  }
+
+  if (changes.removedItems && changes.removedItems.length > 0) {
+    logPromises.push(
+      ...changes.removedItems.map(({ itemId, originalQuantity }) =>
+        createDeliveryOrderLog(
+          deliveryOrder.deliveryOrderId,
+          userId,
+          "DELETE",
+          `🗑️ Menghapus Barang\n` +
+            `• Barang: I-${itemId}\n` +
+            `• Jumlah sebelumnya: ${originalQuantity.toLocaleString()} unit`,
+          prisma
+        )
+      )
+    );
+  }
+
+  return logPromises;
 }
 
 async function update(req, userId) {
@@ -509,7 +717,7 @@ async function update(req, userId) {
   address = address ? sanitize(address) : null;
   internalNotes = internalNotes ? sanitize(internalNotes) : null;
 
-  const [deliveryOrder, deliveryOrderItems] = await Promise.all([
+  const [initialDeliveryOrder, deliveryOrderItems] = await Promise.all([
     getDeliveryOrderByConstraints(
       {
         deliveryOrderId,
@@ -550,102 +758,17 @@ async function update(req, userId) {
     ),
   ]);
 
-  const changes = {};
-
-  if (customerId && customerId !== deliveryOrder.customerId) {
-    await CustomerServices.getCustomerByConstraints({
+  const changes = await getUpdateChanges(
+    items,
+    {
       customerId,
-    });
+      address,
+      internalNotes,
+    },
+    initialDeliveryOrder,
+    deliveryOrderItems
+  );
 
-    changes.customerId = customerId;
-  }
-
-  if (address && address !== deliveryOrder.address) {
-    changes.address = address;
-  }
-
-  if (internalNotes && internalNotes !== deliveryOrder.internalNotes) {
-    changes.internalNotes = internalNotes;
-  }
-
-  const createdItems = [];
-  const removedItems = [];
-  const updatedItems = [];
-  if (items.length > 0) {
-    await checkItemsValid(items);
-
-    // Check for created items (items that are not already in the existing order)
-    items.forEach((targetedItem) => {
-      const itemExists = deliveryOrderItems.some(
-        (item) => item.itemId === targetedItem.itemId
-      );
-
-      if (!itemExists) {
-        createdItems.push(targetedItem);
-      }
-    });
-
-    // Check for removed items (items that are in the existing order but not in the new list)
-    deliveryOrderItems.forEach((existingItem) => {
-      const itemExists = items.some(
-        (targetedItem) => targetedItem.itemId === existingItem.itemId
-      );
-
-      if (!itemExists) {
-        if (existingItem.completedQuantity || existingItem.processQuantity) {
-          throw new ResponseError(
-            400,
-            "Barang sudah diproses sebagian atau pengirimannya telah selesai, tidak dapat menghapus barang dari DO"
-          );
-        }
-
-        removedItems.push(existingItem);
-      }
-    });
-
-    // Check for updated items (items that are already in the order but have changed)
-    items.forEach((targetedItem) => {
-      const existingItem = deliveryOrderItems.find(
-        (item) => item.itemId === targetedItem.itemId
-      );
-
-      if (
-        existingItem &&
-        existingItem.originalQuantity !== targetedItem.quantity
-      ) {
-        if (
-          parseInt(existingItem.processQuantity) +
-            parseInt(existingItem.completedQuantity) >
-          targetedItem.quantity
-        ) {
-          throw new ResponseError(
-            400,
-            "Jumlah barang yang sudah diproses atau dikirim kurang dari jumlah yang diubah."
-          );
-        }
-        updatedItems.push(targetedItem);
-      }
-    });
-
-    // Collect changes for items (created, removed, updated)
-    if (createdItems.length > 0) {
-      changes.createdItems = createdItems;
-    }
-
-    if (removedItems.length > 0) {
-      changes.removedItems = removedItems;
-    }
-
-    if (updatedItems.length > 0) {
-      changes.updatedItems = updatedItems;
-    }
-  }
-
-  if (Object.keys(changes).length === 0) {
-    throw new ResponseError(409, "Tidak ada perubahan yang teridentifikasi");
-  }
-
-  // Start the transaction to update the delivery order
   // Start the transaction to update the delivery order
   await prismaClient.$transaction(async (prisma) => {
     // Update the delivery order
@@ -659,15 +782,15 @@ async function update(req, userId) {
         // Handle created, removed, and updated items
         DeliveryOrderItems: {
           createMany: {
-            data: createdItems.map(({ itemId, quantity }) => ({
+            data: changes.createdItems.map(({ itemId, quantity }) => ({
               itemId,
               quantity,
             })),
           },
           deleteMany: {
-            itemId: { in: removedItems.map((item) => item.itemId) },
+            itemId: { in: changes.removedItems.map((item) => item.itemId) },
           },
-          updateMany: updatedItems.map(({ itemId, quantity }) => ({
+          updateMany: changes.updatedItems.map(({ itemId, quantity }) => ({
             where: { itemId }, // Match by itemId
             data: { quantity }, // Update quantity
           })),
@@ -688,73 +811,28 @@ async function update(req, userId) {
       },
     });
 
-    // Prepare log entriesq
-    const logPromises = [];
+    // Prepare log entries
+    const logPromises = await createUpdateItemsLog(
+      changes,
+      deliveryOrder,
+      userId,
+      prisma,
+      deliveryOrderItems
+    );
 
     if (changes.customerId || changes.address || changes.internalNotes) {
+      const changesLog = await createUpdateInformationLog(
+        changes,
+        initialDeliveryOrder
+      );
+
       logPromises.push(
         createDeliveryOrderLog(
           deliveryOrder.deliveryOrderId,
           userId,
           "UPDATE",
-          `Mengubah ${
-            changes.customerId
-              ? `Kustomer dari ${deliveryOrder.customerId} menjadi ${changes.customerId};`
-              : ""
-          }
-         ${
-           changes.address
-             ? `Alamat dari ${deliveryOrder.address} menjadi ${changes.address};`
-             : ""
-         }
-         ${
-           changes.internalNotes
-             ? `Catatan internal dari ${deliveryOrder.internalNotes} menjadi ${changes.internalNotes};`
-             : ""
-         }`,
+          `✏️ Memperbarui Informasi Pesanan \n` + changesLog.join("\n"),
           prisma
-        )
-      );
-    }
-
-    if (changes.createdItems && changes.createdItems.length > 0) {
-      logPromises.push(
-        ...changes.createdItems.map(({ itemId, quantity }) =>
-          createDeliveryOrderLog(
-            deliveryOrder.deliveryOrderId,
-            userId,
-            "CREATE",
-            `Menambahkan barang pada DO dengan Barang I${itemId}; Kuantitas: ${quantity}`,
-            prisma
-          )
-        )
-      );
-    }
-
-    if (changes.updatedItems && changes.updatedItems.length > 0) {
-      logPromises.push(
-        ...changes.updatedItems.map(({ itemId, quantity }) =>
-          createDeliveryOrderLog(
-            deliveryOrder.deliveryOrderId,
-            userId,
-            "UPDATE",
-            `Mengubah kuantitas barang pada Barang I${itemId}; Kuantitas: ${quantity}`,
-            prisma
-          )
-        )
-      );
-    }
-
-    if (changes.removedItems && changes.removedItems.length > 0) {
-      logPromises.push(
-        ...changes.removedItems.map(({ itemId }) =>
-          createDeliveryOrderLog(
-            deliveryOrder.deliveryOrderId,
-            userId,
-            "DELETE",
-            `Menghapus barang pada Barang I${itemId};`,
-            prisma
-          )
         )
       );
     }

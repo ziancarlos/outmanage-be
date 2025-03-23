@@ -83,8 +83,7 @@ async function getAll(request) {
     });
   }
 
-  // If no filters are applied, return all records
-  const whereClause = filters.length > 0 ? { OR: filters } : {};
+  const whereClause = filters.length > 0 ? { AND: filters } : {};
 
   const items = await prismaClient.item.findMany({
     where: whereClause,
@@ -179,7 +178,7 @@ async function getLogs(request) {
     });
   }
 
-  const whereClause = filters.length > 0 ? { OR: filters } : {};
+  const whereClause = filters.length > 0 ? { AND: filters } : {};
 
   const itemsLogs = await prismaClient.itemLog.findMany({
     select: {
@@ -187,6 +186,7 @@ async function getLogs(request) {
       itemId: true,
       Item: {
         select: {
+          itemId: true,
           name: true,
         },
       },

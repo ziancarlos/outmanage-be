@@ -1,4 +1,3 @@
-import ResponseError from "../errors/ResponseError.js";
 import DeliveryOrderServices from "../services/DeliveryOrderServices.js";
 async function get(req, res, next) {
   try {

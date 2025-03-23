@@ -9,6 +9,7 @@ async function get(req, res, next) {
       data: result,
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -55,6 +56,7 @@ async function getLogs(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
