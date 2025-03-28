@@ -365,7 +365,7 @@ const saveImageValidation = Joi.object({
     "number.positive": "Id Pengiriman harus berupa angka positif",
     "any.required": "Id Pengiriman diperlukan",
   }),
-  imageUrl: Joi.string().uri().required().messages({
+  imageUrl: Joi.string().required().messages({
     "string.empty": "Image URL tidak boleh kosong",
     "string.uri": "Format Image URL tidak valid",
     "any.required": "Image URL wajib diisi",

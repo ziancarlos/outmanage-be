@@ -1,6 +1,7 @@
+import path from "path";
 import ResponseError from "../errors/ResponseError.js";
 import ShipmentServices from "../services/ShipmentServices.js";
-
+import fs from "fs";
 async function get(req, res, next) {
   try {
     const shipmentId = req.params.shipmentId;
@@ -11,7 +12,6 @@ async function get(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -45,7 +45,6 @@ async function getAll(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -89,7 +88,6 @@ async function create(req, res, next) {
       data: "Berhasil menambahkan Pengiriman.",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -102,13 +100,13 @@ async function uploadImage(req, res, next) {
 
     const request = {
       shipmentId: req.params.shipmentId,
-      imageUrl: req.file.filename,
+      imageUrl: req.file.filename, // This now uses Multer's filename
     };
 
     await ShipmentServices.saveImage(request);
 
     return res.status(201).json({
-      message: "Bukti muat barang berhasil ditambahkan.",
+      message: "Bukti pengiriman barang berhasil diunggah.",
     });
   } catch (e) {
     next(e);
@@ -119,10 +117,38 @@ async function showImage(req, res, next) {
   try {
     const { shipmentId } = req.params;
 
-    const loadGoodsPicture = await ShipmentServices.getImage(shipmentId);
+    // Get filename from service
+    const filename = await ShipmentServices.getImage(shipmentId);
 
-    res.setHeader("Content-Type", "image/jpeg");
-    res.send(loadGoodsPicture);
+    // Create absolute path
+    const imagePath = path.join(
+      process.cwd(), // Root project directory
+      "uploads",
+      "shipments",
+      filename
+    );
+
+    // Verify file exists
+    if (!fs.existsSync(imagePath)) {
+      throw new ResponseError(404, "Unggahan tidak ditemukkan");
+    }
+
+    // Determine MIME type dynamically
+    const ext = path.extname(filename).toLowerCase();
+    const mimeTypes = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".gif": "image/gif",
+    };
+
+    // Send file with correct headers
+    res.sendFile(imagePath, {
+      headers: {
+        "Content-Type": mimeTypes[ext] || "application/octet-stream",
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
   } catch (e) {
     next(e);
   }
@@ -143,7 +169,6 @@ async function update(req, res, next) {
       data: "Berhasil mengubah Pengiriman.",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }

@@ -58,8 +58,75 @@ async function createDeliveryOrderLog(
   });
 }
 
+async function getQuantityStatusById(deliveryOrderId) {
+  return await prismaClient.$queryRawUnsafe(
+    `SELECT
+  doi.deliveryOrderItemId,
+  doi.itemId,
+  i.name,
+  doi.quantity AS originalQuantity,
+  (doi.quantity - COALESCE(SUM(sdoi.quantity), 0)) AS pendingQuantity,
+  COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NOT NULL THEN sdoi.quantity ELSE 0 END), 0) AS completedQuantity,
+  COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity
+FROM
+    delivery_orders_items doi
+LEFT JOIN
+    shipment_deliveries_orders_items sdoi 
+        ON doi.deliveryOrderItemId = sdoi.deliveryOrderItemId 
+LEFT JOIN
+    shipment_deliveries_orders sdo 
+        ON sdoi.shipmentDeliveryOrderId = sdo.shipmentDeliveryOrderId 
+LEFT JOIN
+    shipments s 
+        ON sdo.shipmentId = s.shipmentId 
+        AND s.deletedAt IS NULL
+LEFT JOIN
+      items i
+        ON doi.itemId = i.itemId
+WHERE
+    doi.deliveryOrderId = ?
+    AND s.deletedAt IS NULL    
+GROUP BY  doi.deliveryOrderItemId, doi.itemId, doi.quantity;`,
+    deliveryOrderId
+  );
+}
+
 async function get(deliveryOrderIdInput) {
-  let {
+  let [deliveryOrder, deliveryOrderItems] = await Promise.all([
+    getDeliveryOrderByConstraints(
+      {
+        deliveryOrderId: validate(getValidation, deliveryOrderIdInput),
+      },
+      {
+        deliveryOrderId: true,
+        Customer: {
+          select: {
+            customerId: true,
+            name: true,
+          },
+        },
+        ShipmentDeliveryOrder: {
+          select: {
+            shipmentDeliveryOrderId: true,
+            deliveryOrderId: true,
+            Shipment: {
+              select: {
+                shipmentId: true,
+                loadGoodsPicture: true,
+              },
+            },
+          },
+        },
+        status: true,
+        address: true,
+        internalNotes: true,
+        deletedAt: true,
+      }
+    ),
+    getQuantityStatusById(deliveryOrderIdInput),
+  ]);
+
+  const {
     deliveryOrderId,
     Customer: customer,
     ShipmentDeliveryOrder: shipmentDeliveryOrder,
@@ -67,67 +134,7 @@ async function get(deliveryOrderIdInput) {
     internalNotes,
     deletedAt,
     status,
-  } = await getDeliveryOrderByConstraints(
-    {
-      deliveryOrderId: validate(getValidation, deliveryOrderIdInput),
-    },
-    {
-      deliveryOrderId: true,
-      Customer: {
-        select: {
-          customerId: true,
-          name: true,
-        },
-      },
-      ShipmentDeliveryOrder: {
-        select: {
-          shipmentDeliveryOrderId: true,
-          deliveryOrderId: true,
-          Shipment: {
-            select: {
-              shipmentId: true,
-              loadGoodsPicture: true,
-            },
-          },
-        },
-      },
-      status: true,
-      address: true,
-      internalNotes: true,
-      deletedAt: true,
-    }
-  );
-
-  const deliveryOrderItems = await prismaClient.$queryRawUnsafe(
-    `SELECT
-    doi.deliveryOrderItemId,
-    doi.itemId,
-    i.name,
-    doi.quantity AS originalQuantity,
-    (doi.quantity - COALESCE(SUM(sdoi.quantity), 0)) AS pendingQuantity,
-    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NOT NULL THEN sdoi.quantity ELSE 0 END), 0) AS completedQuantity,
-    COALESCE(SUM(CASE WHEN s.loadGoodsPicture IS NULL THEN sdoi.quantity ELSE 0 END), 0) AS processQuantity
-  FROM
-      delivery_orders_items doi
-  LEFT JOIN
-      shipment_deliveries_orders_items sdoi 
-          ON doi.deliveryOrderItemId = sdoi.deliveryOrderItemId 
-  LEFT JOIN
-      shipment_deliveries_orders sdo 
-          ON sdoi.shipmentDeliveryOrderId = sdo.shipmentDeliveryOrderId 
-  LEFT JOIN
-      shipments s 
-          ON sdo.shipmentId = s.shipmentId 
-          AND s.deletedAt IS NULL
-  LEFT JOIN
-        items i
-          ON doi.itemId = i.itemId
-  WHERE
-      doi.deliveryOrderId = ?
-      AND s.deletedAt IS NULL    
-  GROUP BY  doi.deliveryOrderItemId, doi.itemId, doi.quantity;`,
-    deliveryOrderId
-  );
+  } = deliveryOrder;
 
   return {
     deliveryOrderId,
@@ -135,21 +142,19 @@ async function get(deliveryOrderIdInput) {
     address,
     internalNotes,
     status,
-    deliveryOrderItems: deliveryOrderItems.map((item) => {
-      return {
-        deliveryOrderItemId: item.deliveryOrderItemId,
-        item: {
-          itemId: item.itemId,
-          name: item.name,
-        },
-        orderedQuantity: item.originalQuantity,
-        pendingQuantity: item.pendingQuantity,
-        completedQuantity: item.completedQuantity,
-        processQuantity: item.processQuantity,
-      };
-    }),
-    shipmentDeliveryOrder,
     deletedAt,
+    shipmentDeliveryOrder,
+    deliveryOrderItems: deliveryOrderItems.map((item) => ({
+      deliveryOrderItemId: item.deliveryOrderItemId,
+      item: {
+        itemId: item.itemId,
+        name: item.name,
+      },
+      orderedQuantity: item.originalQuantity,
+      pendingQuantity: item.pendingQuantity,
+      completedQuantity: item.completedQuantity,
+      processQuantity: item.processQuantity,
+    })),
   };
 }
 
@@ -476,7 +481,7 @@ async function create(req, userId) {
       deliveryOrder.deliveryOrderId,
       userId,
       "CREATE",
-      `📦 Membuat Pesanan Pengiriman Baru\n` +
+      `📦 Membuat DO Baru\n` +
         `• Pelanggan: C-${customerId}\n` +
         `• Alamat: ${address || "Alamat tidak dicantumkan"}\n` +
         `• Catatan: ${internalNotes || "Tidak ada catatan tambahan"}`,
@@ -849,4 +854,5 @@ export default {
   create,
   update,
   getDeliveryOrderByConstraints,
+  getQuantityStatusById,
 };

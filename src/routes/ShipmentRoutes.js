@@ -4,7 +4,7 @@ import {
   authorizationMiddleware,
 } from "../middlewares/AuthMiddlewares.js";
 import ShipmentControllers from "../controllers/ShipmentControllers.js";
-import upload from "../middlewares/UploadMiddleware.js";
+import { upload } from "../middlewares/UploadMiddlewares.js";
 
 const ShipmentRoutes = Router();
 
@@ -37,10 +37,11 @@ ShipmentRoutes.patch(
 
 ShipmentRoutes.put(
   "/api/shipments/:shipmentId",
-  upload.single("image"),
+  upload.single("image"), // Multer should be first
   authorizationMiddleware("upload-shipment-image"),
   ShipmentControllers.uploadImage
 );
+
 ShipmentRoutes.get(
   "/api/shipments/images/:shipmentId",
   ShipmentControllers.showImage

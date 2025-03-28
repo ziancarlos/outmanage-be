@@ -510,6 +510,33 @@ async function getLogs(request) {
   };
 }
 
+async function checkDOsQuantityAvailable(deliveryOrders) {
+  await Promise.all(
+    deliveryOrders.map(async ({ deliveryOrderId, items }) => {
+      const deliveryOrderItems =
+        await DeliveryOrderServices.getQuantityStatusById(deliveryOrderId);
+
+      items.forEach(({ deliveryOrderItemId, quantity }) => {
+        const item = deliveryOrderItems.find(
+          ({ deliveryOrderItemId: doiId }) => doiId === deliveryOrderItemId
+        );
+        if (!item) {
+          throw new ResponseError(
+            400,
+            "Item pesanan pengiriman tidak ditemukan."
+          );
+        }
+        if (parseInt(item.pendingQuantity, 10) < quantity) {
+          throw new ResponseError(
+            400,
+            "Kuantitas yang diberikan melebihi kuantitas yang dipesan."
+          );
+        }
+      });
+    })
+  );
+}
+
 async function create(req, userId) {
   let { internalNotes, licensePlate, fleetId, deliveryOrders } = validate(
     createValidation,
@@ -532,6 +559,8 @@ async function create(req, userId) {
   }
 
   await checkDeliveryOrders(deliveryOrders);
+
+  await checkDOsQuantityAvailable(deliveryOrders);
 
   request.ShipmentDeliveryOrder = {
     create: deliveryOrders.map(
@@ -588,7 +617,7 @@ async function create(req, userId) {
         shipment.shipmentId,
         userId,
         "CREATE",
-        `📦 Membuat pengiriman baru\n` +
+        `📦 Membuat Pengiriman Baru\n` +
           `• Catatan internal: ${
             shipment.internalNotes || "Tidak ada catatan"
           }\n` +
@@ -615,6 +644,7 @@ async function create(req, userId) {
             userId,
             "CREATE",
             `📝 Menambahkan pesanan dari DO-${deliveryOrderId}\n` +
+              +`• SDO-${shipmentDeliveryOrderId} \n` +
               `• Alamat pengiriman: ${
                 address || "Alamat tidak dicantumkan"
               }\n` +
@@ -632,7 +662,8 @@ async function create(req, userId) {
                 shipment.shipmentId,
                 userId,
                 "CREATE",
-                `📦 Menambahkan barang ke DO-${deliveryOrderId}\n` +
+                `📦 Menambahkan barang ke SDO-${shipmentDeliveryOrderId}\n` +
+                  `• SDOI-${shipmentDeliveryOrderItemId}\n` +
                   `• DOI-${deliveryOrderItemId}\n` +
                   `• Jumlah: ${quantity.toLocaleString()} unit`,
                 prisma
@@ -699,17 +730,25 @@ async function saveImage(request) {
 }
 
 async function getImage(shipmentId) {
-  const shipment = getShipmentByConstraints({
-    shipmentId: validate(getValidation, shipmentId),
-    loadGoodsPicture: {
-      not: null,
+  const shipment = await getShipmentByConstraints(
+    {
+      shipmentId: validate(getValidation, shipmentId),
+      loadGoodsPicture: {
+        not: null,
+      },
     },
-  });
+    {
+      loadGoodsPicture: true,
+    },
+    404,
+    "Unggahan tidak ditemukkan."
+  );
 
+  console.log(shipment);
   return shipment.loadGoodsPicture;
 }
 
-function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
+async function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
   const createdSDOs = [];
   const removedSDOs = [];
   const updatedSDOs = [];
@@ -721,12 +760,17 @@ function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
       );
 
       if (!sdoExists) {
-        removedSDOs.push(existingItem);
+        removedSDOs.push(sdo);
       }
     });
 
     // Process requested delivery orders
     for (const deliveryOrder of deliveryOrders) {
+      const deliveryOrderItems =
+        await DeliveryOrderServices.getQuantityStatusById(
+          deliveryOrder.deliveryOrderId
+        );
+
       const existingSDO = shipment.ShipmentDeliveryOrder.find(
         (sdo) => sdo.deliveryOrderId === deliveryOrder.deliveryOrderId
       );
@@ -738,7 +782,6 @@ function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
         let hasChanges = false;
 
         // Check address changes
-
         if (deliveryOrder.address !== existingSDO.address) {
           sdoChanges.address = deliveryOrder.address;
           hasChanges = true;
@@ -787,8 +830,44 @@ function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
               shipmentDeliveryOrderItemId:
                 existingItem.shipmentDeliveryOrderItemId,
               quantity: requestedItem.quantity,
+              existingItem,
             });
           }
+        }
+
+        if (createdItems.length > 0) {
+          createdItems.forEach(({ deliveryOrderItemId, quantity }) => {
+            const { pendingQuantity } = deliveryOrderItems.find(
+              ({ deliveryOrderItemId: doiId }) => doiId == deliveryOrderItemId
+            );
+
+            if (pendingQuantity < quantity) {
+              throw new ResponseError(
+                400,
+                "Kuantitas yang diberikan melebihi kuantitas yang dipesan."
+              );
+            }
+          });
+        }
+
+        if (updatedItems.length > 0) {
+          updatedItems.forEach(
+            ({
+              existingItem: { deliveryOrderItemId, quantity: initialQuantity },
+              quantity,
+            }) => {
+              const { pendingQuantity } = deliveryOrderItems.find(
+                ({ deliveryOrderItemId: doiId }) => doiId == deliveryOrderItemId
+              );
+
+              if (pendingQuantity + initialQuantity < quantity) {
+                throw new ResponseError(
+                  400,
+                  "Kuantitas yang diberikan melebihi kuantitas yang dipesan."
+                );
+              }
+            }
+          );
         }
 
         updatedSDOs.push({
@@ -805,6 +884,10 @@ function trackChangesOfDeliveryOrders(deliveryOrders, shipment) {
         });
       }
     }
+  }
+
+  if (createdSDOs.length > 0) {
+    await checkDOsQuantityAvailable(createdSDOs);
   }
 
   return { createdSDOs, removedSDOs, updatedSDOs };
@@ -860,7 +943,7 @@ async function update(req, userId) {
 
   // Track changes for delivery orders
   const { createdSDOs, removedSDOs, updatedSDOs } =
-    trackChangesOfDeliveryOrders(deliveryOrders, shipment);
+    await trackChangesOfDeliveryOrders(deliveryOrders, shipment);
 
   if (
     Object.keys(changes).length === 0 &&
@@ -889,14 +972,14 @@ async function update(req, userId) {
 
     // Handle removed SDOs
     for (const sdo of removedSDOs) {
-      await prisma.shipmentDeliveryOrder.delete({
-        where: { shipmentDeliveryOrderId: sdo.shipmentDeliveryOrderId },
-      });
-
       await prisma.shipmentDeliveryOrderItem.deleteMany({
         where: {
           shipmentDeliveryOrderId: sdo.shipmentDeliveryOrderId,
         },
+      });
+
+      await prisma.shipmentDeliveryOrder.delete({
+        where: { shipmentDeliveryOrderId: sdo.shipmentDeliveryOrderId },
       });
 
       logPromises.push(
