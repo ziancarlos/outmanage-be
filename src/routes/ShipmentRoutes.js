@@ -44,6 +44,7 @@ ShipmentRoutes.put(
 
 ShipmentRoutes.get(
   "/api/shipments/images/:shipmentId",
+  authorizationMiddleware("show-shipment-image"),
   ShipmentControllers.showImage
 );
 

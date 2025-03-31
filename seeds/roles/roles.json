@@ -1,0 +1,12 @@
+{
+  "roles": [
+    "Master",
+    "Spv",
+    "Kepala Gudang",
+    "Admin Timbangan",
+    "Admin Surat Jalan",
+    "Admin Gudang Basah",
+    "Admin Gudang Kering",
+    "Admin Custom"
+  ]
+}
