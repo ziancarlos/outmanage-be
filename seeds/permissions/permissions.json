@@ -49,6 +49,9 @@
     "update-shipment-type",
     "update-user",
     "upload-shipment-image",
-    "show-shipment-image"
+    "show-shipment-image",
+    "read-reports-outgoing-items",
+    "download-reports-outgoing-items-excel",
+    "read-dashboard"
   ]
 }

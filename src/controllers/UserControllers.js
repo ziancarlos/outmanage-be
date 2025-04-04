@@ -157,7 +157,6 @@ async function updateMyProfile(req, res, next) {
   try {
     const request = {
       userId: req.user.userId,
-      roleId: req.body.roleId,
       username: req.body.username,
       password: req.body.password,
     };

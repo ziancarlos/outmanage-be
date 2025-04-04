@@ -10,8 +10,6 @@ export default async function main() {
     },
   });
 
-  console.log(roles);
-
   for (let { roleId } of roles) {
     const permissions = await prismaClient.permission.findMany();
 

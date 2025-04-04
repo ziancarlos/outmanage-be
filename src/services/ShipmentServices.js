@@ -75,7 +75,9 @@ async function getAll(request) {
   const filtersOr = [];
 
   if (deliveryOrderId) {
-    await CustomerServices.getCustomerByConstraints({ deliveryOrderId });
+    await DeliveryOrderServices.getDeliveryOrderByConstraints({
+      deliveryOrderId,
+    });
 
     filtersAnd.push({
       ShipmentDeliveryOrder: {
@@ -612,6 +614,11 @@ async function create(req, userId) {
       },
     });
 
+    await DeliveryOrderServices.updateStatus(
+      shipment.ShipmentDeliveryOrder,
+      prisma
+    );
+
     const promises = [
       createShipmentLog(
         shipment.shipmentId,
@@ -718,15 +725,39 @@ async function checkDeliveryOrders(deliveryOrders) {
 }
 
 async function saveImage(request) {
-  let { shipmentId, imageUrl } = validate(saveImageValidation, request);
+  const { shipmentId, imageUrl } = validate(saveImageValidation, request);
 
   // Ensure shipment exists
   await getShipmentByConstraints({ shipmentId });
 
-  await prismaClient.shipment.update({
-    where: { shipmentId },
-    data: { loadGoodsPicture: imageUrl },
+  // Start transaction
+  await prismaClient.$transaction(async (tx) => {
+    // Update shipment image
+    await tx.shipment.update({
+      where: { shipmentId },
+      data: { loadGoodsPicture: imageUrl },
+    });
+
+    await updateSDOsStatus(shipmentId, tx);
   });
+}
+
+async function updateSDOsStatus(shipmentId, prisma) {
+  const shipment = await prisma.shipment.findUnique({
+    where: { shipmentId },
+    select: {
+      ShipmentDeliveryOrder: {
+        select: { deliveryOrderId: true },
+      },
+    },
+  });
+
+  if (!shipment || !shipment.ShipmentDeliveryOrder.length) return;
+
+  await DeliveryOrderServices.updateStatus(
+    shipment.ShipmentDeliveryOrder,
+    prisma
+  );
 }
 
 async function getImage(shipmentId) {
@@ -744,7 +775,6 @@ async function getImage(shipmentId) {
     "Unggahan tidak ditemukkan."
   );
 
-  console.log(shipment);
   return shipment.loadGoodsPicture;
 }
 
@@ -1155,6 +1185,8 @@ async function update(req, userId) {
         );
       }
     }
+
+    await updateSDOsStatus(shipmentId, prisma);
 
     await Promise.all(logPromises);
   });

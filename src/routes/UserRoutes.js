@@ -51,11 +51,7 @@ UserRoute.post(
   UserControllers.create
 );
 
-UserRoute.patch(
-  "/api/users/:userId",
-  authorizationMiddleware("update-user"),
-  UserControllers.update
-);
+UserRoute.patch("/api/users/:userId", UserControllers.update);
 
 UserRoute.delete(
   "/api/users/:userId",

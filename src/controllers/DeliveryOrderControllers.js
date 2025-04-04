@@ -9,7 +9,6 @@ async function get(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -86,7 +85,6 @@ async function create(req, res, next) {
       data: "Berhasil menambahkan DO.",
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }
@@ -107,7 +105,6 @@ async function update(req, res, next) {
       data: result,
     });
   } catch (e) {
-    console.log(e);
     next(e);
   }
 }

@@ -24,6 +24,7 @@ async function getAll(req, res, next) {
             licensePlate: req.query.licensePlate,
             shipmentType: req.query.shipmentType,
             status: req.query.status,
+            deliveryOrderId: req.query.deliveryOrderId,
             removedStatus: req.query.removedStatus,
             date: {
               startDate: req.query.startDate,
@@ -35,6 +36,7 @@ async function getAll(req, res, next) {
         : {
             licensePlate: req.query.licensePlate,
             shipmentType: req.query.shipmentType,
+            deliveryOrderId: req.query.deliveryOrderId,
             status: req.query.status,
             removedStatus: req.query.removedStatus,
             page: req.query.page,
@@ -45,6 +47,7 @@ async function getAll(req, res, next) {
 
     res.status(200).json(result);
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }
@@ -109,6 +112,7 @@ async function uploadImage(req, res, next) {
       message: "Bukti pengiriman barang berhasil diunggah.",
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }

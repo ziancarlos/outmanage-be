@@ -58,8 +58,9 @@ async function createDeliveryOrderLog(
   });
 }
 
-async function getQuantityStatusById(deliveryOrderId) {
-  return await prismaClient.$queryRawUnsafe(
+async function getQuantityStatusById(deliveryOrderId, prisma) {
+  const tx = prisma ? prisma : prismaClient;
+  return await tx.$queryRawUnsafe(
     `SELECT
   doi.deliveryOrderItemId,
   doi.itemId,
@@ -88,6 +89,50 @@ WHERE
     AND s.deletedAt IS NULL    
 GROUP BY  doi.deliveryOrderItemId, doi.itemId, doi.quantity;`,
     deliveryOrderId
+  );
+}
+
+async function updateStatus(deliveryOrders, prisma) {
+  await Promise.all(
+    deliveryOrders.map(async ({ deliveryOrderId }) => {
+      const deliveryOrderItems = await getQuantityStatusById(
+        deliveryOrderId,
+        prisma
+      );
+
+      console.log(deliveryOrderItems);
+
+      if (!deliveryOrderItems.length) return;
+
+      const allCompleted = deliveryOrderItems.every(
+        (item) => item.completedQuantity == item.originalQuantity
+      );
+      const allProcessed = deliveryOrderItems.every(
+        (item) => item.processQuantity === item.originalQuantity
+      );
+      const allPending = deliveryOrderItems.every(
+        (item) => item.pendingQuantity === item.originalQuantity
+      );
+      const hasCompleted = deliveryOrderItems.some(
+        (item) => item.completedQuantity === item.originalQuantity
+      );
+      const hasProcessed = deliveryOrderItems.some(
+        (item) => item.processQuantity === item.originalQuantity
+      );
+
+      let newStatus = "PROSES"; // Default status
+
+      console.log(newStatus);
+      if (allCompleted) newStatus = "SELESAI";
+      else if (allProcessed) newStatus = "PROSES";
+      else if (allPending) newStatus = "PENDING";
+      else if (hasCompleted || hasProcessed) newStatus = "PROSES";
+
+      await prisma.deliveryOrder.update({
+        where: { deliveryOrderId },
+        data: { status: newStatus },
+      });
+    })
   );
 }
 
@@ -189,6 +234,7 @@ async function getAll(request) {
       },
     });
   }
+
   if (name) {
     filters.push({
       Customer: {
@@ -816,6 +862,8 @@ async function update(req, userId) {
       },
     });
 
+    await updateStatus([{ deliveryOrderId }], prisma);
+
     // Prepare log entries
     const logPromises = await createUpdateItemsLog(
       changes,
@@ -855,4 +903,5 @@ export default {
   update,
   getDeliveryOrderByConstraints,
   getQuantityStatusById,
+  updateStatus,
 };
