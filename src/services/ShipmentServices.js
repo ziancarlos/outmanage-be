@@ -10,7 +10,7 @@ import {
   getValidation,
   saveImageValidation,
   updateValidation,
-} from "../validations/shipmentValidations.js";
+} from "../validations/ShipmentValidations.js";
 import ResponseError from "../errors/ResponseError.js";
 
 async function getShipmentByConstraints(
