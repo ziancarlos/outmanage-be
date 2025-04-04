@@ -58,9 +58,8 @@ async function createDeliveryOrderLog(
   });
 }
 
-async function getQuantityStatusById(deliveryOrderId, prisma) {
-  const tx = prisma ? prisma : prismaClient;
-  return await tx.$queryRawUnsafe(
+async function getQuantityStatusById(deliveryOrderId, prisma = prismaClient) {
+  return await prisma.$queryRawUnsafe(
     `SELECT
   doi.deliveryOrderItemId,
   doi.itemId,
@@ -100,8 +99,6 @@ async function updateStatus(deliveryOrders, prisma) {
         prisma
       );
 
-      console.log(deliveryOrderItems);
-
       if (!deliveryOrderItems.length) return;
 
       const allCompleted = deliveryOrderItems.every(
@@ -122,7 +119,6 @@ async function updateStatus(deliveryOrders, prisma) {
 
       let newStatus = "PROSES"; // Default status
 
-      console.log(newStatus);
       if (allCompleted) newStatus = "SELESAI";
       else if (allProcessed) newStatus = "PROSES";
       else if (allPending) newStatus = "PENDING";

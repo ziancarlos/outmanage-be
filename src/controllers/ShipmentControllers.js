@@ -174,6 +174,7 @@ async function update(req, res, next) {
       data: "Berhasil mengubah Pengiriman.",
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 }

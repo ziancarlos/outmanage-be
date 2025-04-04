@@ -1064,9 +1064,10 @@ async function update(req, userId) {
           createShipmentLog(
             shipmentId,
             userId,
+            "CREATE",
             `📦 Menambahkan barang ke DO-${sdoData.deliveryOrderId}\n` +
               `• DOI-${item.deliveryOrderItemId}\n` +
-              `• Jumlah: ${item.quantity.toLocaleString("")} unit`,
+              `• Jumlah: ${item.quantity.toLocaleString()} unit`,
             prisma
           )
         );
