@@ -20,7 +20,7 @@ const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
 
 app.use(
   cors({
-    origin: "*", // Allow requests from this origin
+    origin, // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
