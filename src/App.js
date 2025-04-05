@@ -18,20 +18,30 @@ app.use(cookieParser());
 
 const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
-  next();
-});
+// app.use(
+//   cors({
+//     origin, // Allow requests from this origin
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true,
+//   })
+// );
 
 app.use(
   cors({
-    origin, // Allow requests from this origin
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
+    origin: "https://outmanage.online", // or use a variable
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+// This line ensures your server replies to preflight OPTIONS
+app.options(
+  "*",
+  cors({
+    origin: "https://outmanage.online",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
