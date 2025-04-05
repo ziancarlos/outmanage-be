@@ -19,7 +19,7 @@ app.use(cookieParser());
 const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
 
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "https://outmanage.online");
+  res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept"
