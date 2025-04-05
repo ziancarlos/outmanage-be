@@ -16,9 +16,17 @@ import DashboardRoutes from "./routes/DashboardRoutes.js";
 const app = express();
 app.use(cookieParser());
 
+const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
+console.log(origin);
+
+app.use((req, res, next) => {
+  console.log("Incoming request from:", req.headers.origin);
+  next();
+});
+
 app.use(
   cors({
-    origin: process.env.ALLOW_ORIGIN || "https://outmanage.online", // Allow requests from this origin
+    origin, // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,

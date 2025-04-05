@@ -35,8 +35,8 @@ ShipmentRoutes.patch(
   ShipmentControllers.update
 );
 
-ShipmentRoutes.put(
-  "/api/shipments/:shipmentId",
+ShipmentRoutes.post(
+  "/api/shipments/:shipmentId/upload",
   upload.single("image"), // Multer should be first
   authorizationMiddleware("upload-shipment-image"),
   ShipmentControllers.uploadImage
