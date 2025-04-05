@@ -18,30 +18,16 @@ app.use(cookieParser());
 
 const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
 
-// app.use(
-//   cors({
-//     origin, // Allow requests from this origin
-//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // Allow these HTTP methods
-//     allowedHeaders: ["Content-Type", "Authorization"],
-//     credentials: true,
-//   })
-// );
+app.use(
+  cors({
+    origin, // Allow requests from this origin
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // Allow these HTTP methods
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // Error handling middleware (place after routes)
-app.use((err, req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://outmanage.online");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  );
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  // Handle the error response
-  res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error",
-  });
-});
 
 app.use(express.json());
 
@@ -56,7 +42,22 @@ app.use(ShipmentRoutes);
 app.use(ReportRoute);
 app.use(DashboardRoutes);
 
+app.use((err, req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://outmanage.online");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Handle the error response
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
+  });
+});
 app.use(errorMiddleware);
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
