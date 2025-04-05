@@ -17,10 +17,14 @@ const app = express();
 app.use(cookieParser());
 
 const origin = process.env.ALLOW_ORIGIN || "https://outmanage.online";
-console.log(origin);
 
-app.use((req, res, next) => {
-  console.log("Incoming request from:", req.headers.origin);
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "https://outmanage.online");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
   next();
 });
 
