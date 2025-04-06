@@ -43,7 +43,7 @@ export async function authenticationMiddleware(req, res, next) {
 
     if (!targetedUser) {
       return res.status(401).send({
-        error: "Unauthorized 3",
+        error: "Unauthorized",
       });
     }
 
