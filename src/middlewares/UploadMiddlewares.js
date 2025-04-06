@@ -38,7 +38,7 @@ const upload = multer({
   },
 });
 
-export function handleUploadImage(req, res, next) {
+export default function handleUploadImage(req, res, next) {
   upload.single("image")(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
