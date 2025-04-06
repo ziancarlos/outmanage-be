@@ -30,7 +30,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-export const upload = multer({
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
@@ -38,21 +38,19 @@ export const upload = multer({
   },
 });
 
-// middlewares/MulterErrorHandler.js
-
-// export function handleUploadImage(req, res, next) {
-//   upload.single("image")(req, res, (err) => {
-//     if (err instanceof multer.MulterError) {
-//       if (err.code === "LIMIT_FILE_SIZE") {
-//         return res
-//           .status(400)
-//           .json({ error: "Ukuran file terlalu besar. Maksimal 20MB." });
-//       }
-//       return res.status(400).json({ error: `Upload error: ${err.message}` });
-//     } else if (err) {
-//       // From fileFilter or other errors
-//       return res.status(400).json({ error: err.message });
-//     }
-//     next();
-//   });
-// }
+export function handleUploadImage(req, res, next) {
+  upload.single("image")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res
+          .status(400)
+          .json({ error: "Ukuran file terlalu besar. Maksimal 20MB." });
+      }
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      // From fileFilter or other errors
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}
